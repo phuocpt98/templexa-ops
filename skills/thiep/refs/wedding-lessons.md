@@ -96,7 +96,7 @@
 
 **Bài học element AI gen (bộ `heritage-elements`):**
 - Prompt lưới 3×3 cho AI gen ảnh hiệu quả — 9 element/lần, nhất quán style, tiết kiệm công
-- Cắt bằng `scripts/cut-element-grid.js`. Ba cạm bẫy đã vấp:
+- Cắt bằng `templexa-ops/scripts/cut-icons.js` (thay script cũ cut-element-grid.js đã xoá). Ba cạm bẫy đã vấp với script cũ:
   1. **Tách nền theo độ sáng làm thủng element** — vàng nhạt `#F5E6B8` sáng 245, gần bằng nền trắng.
      → Phải lọc theo **chroma** (max−min RGB): trắng ≈0, vàng ≥40. Chỉ pixel *vừa sáng vừa trung tính* mới là nền.
   2. **Lưới cứng cắt cụt element** — đôi rồng rộng hơn 1/3 ảnh, bị xén hai bên.
