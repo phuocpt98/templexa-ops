@@ -9,7 +9,6 @@
  * đường dẫn ../../../shared/… trong HTML vẫn đúng). Thêm 1 phần tử vào job.cards.
  *
  * KHÔNG copy: shots/, qr/, og-cover.jpg, prompt.txt, guests.*, data.json — những thứ thuộc về mẫu gốc.
- * Gỡ khối <!--TEMPLEXA-PROTECT--> (deploy sẽ tự gắn lại) để code dễ đọc khi sửa.
  * KHÔNG BAO GIỜ sửa thư mục mẫu gốc.
  */
 const fs = require('fs');
@@ -50,14 +49,6 @@ function copy(s, d) {
 }
 copy(srcDir, dest);
 
-// Gỡ khối protect trong mọi file HTML vừa copy
-let stripped = 0;
-for (const f of fs.readdirSync(dest).filter(f => f.endsWith('.html'))) {
-    const fp = path.join(dest, f), html = fs.readFileSync(fp, 'utf8');
-    const out = html.replace(/<!--TEMPLEXA-PROTECT-->[\s\S]*?<!--\/TEMPLEXA-PROTECT-->\n?/g, '');
-    if (out !== html) { fs.writeFileSync(fp, out); stripped++; }
-}
-
 // Ảnh khách để riêng 1 thư mục, không lẫn ảnh mẫu
 const photoDir = ['photos', 'customer', 'anh-khach'].find(d => !fs.existsSync(path.join(dest, d)));
 fs.mkdirSync(path.join(dest, photoDir));
@@ -76,6 +67,6 @@ C.stepDone(j, 'clone:' + key, `#${fromId} ${P.name} → ${card.folder}`);
 // Gợi ý những chỗ phải thay
 const html = fs.readFileSync(path.join(dest, card.entry), 'utf8');
 const imgs = [...new Set((html.match(/(?:src=|url\()["']?((?!https?:|data:|\.\.\/)[^"')\s]+\.(?:webp|jpe?g|png))/g) || []).map(m => m.replace(/^(src=|url\()["']?/, '')))];
-C.ok(`Clone #${fromId} → ${card.folder}${card.entry}${stripped ? ' (đã gỡ protect)' : ''}`);
+C.ok(`Clone #${fromId} → ${card.folder}${card.entry}`);
 console.log(`  Ảnh khách: chạy  node scripts/to-webp.js ${j.id}${j.cards.length > 1 ? ' --card ' + key : ''}  → ${card.folder}${photoDir}/`);
 console.log(`  Ảnh mẫu đang dùng trong ${card.entry} (${imgs.length}) — thay bằng ${photoDir}/anh_N.webp:\n    ` + imgs.join('\n    '));

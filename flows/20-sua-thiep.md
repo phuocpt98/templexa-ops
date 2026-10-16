@@ -29,5 +29,5 @@ File: products/Invitation/Other/khach_37_tot-nghiep-trang-trong/index.html
 3. `cd Templexa && git switch main && git pull && git switch -c job-<slug>-sua-<số>` (hoặc nhánh job cũ nếu chưa merge).
 4. Mỗi dòng: dòng `File:` = file cần sửa; `[...]` = vị trí (phần › selector, "thứ 3/8" = phần tử thứ 3 trong 8 cái khớp); `"..."` = chữ đang hiện; `ảnh:` = file ảnh đang dùng. Tìm bằng chữ đang hiện trước (grep), selector để xác nhận đúng chỗ.
 5. Sửa đúng yêu cầu, không sửa lan. Yêu cầu mơ hồ → hỏi lại kèm 2–3 phương án (skills/thiep mục D).
-6. Xong dòng nào đổi `[ ]` → `[x]` + ghi ngắn "đã …". Chụp lại `shoot.js`, commit, push, `npm run deploy` (preview), gửi link + ảnh trước/sau.
+6. Xong dòng nào đổi `[ ]` → `[x]` + ghi ngắn "đã …". Chụp lại `shoot.js`, commit, `npm run deploy` (preview — tự pull + push), gửi link + ảnh trước/sau.
 7. Đồng ý → merge main → `npm run deploy -- --prod` → `job.js status <job> xong`.

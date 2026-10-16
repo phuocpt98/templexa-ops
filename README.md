@@ -62,7 +62,7 @@ node scripts/shoot.js <job>
 node scripts/og-cover.js <job>                                                            # 30
 node scripts/shortlink.js <job> --title "…" --desc "…"
 node scripts/catalog.js add <job> --name "…" --label "…"
-cd Templexa && git add -A && git commit -m "…" && git push -u origin job-<slug> && npm run deploy   # xem thử
+cd Templexa && git add -A && git commit -m "…" && npm run deploy   # tự pull → push → deploy xem thử
 #   … chủ shop duyệt → merge main → npm run deploy -- --prod …
 node scripts/job.js status <job> xong && node scripts/job.js archive <job>               # 90
 ```
@@ -74,7 +74,7 @@ node scripts/job.js status <job> xong && node scripts/job.js archive <job>      
   Claude dùng được skill qua `.claude/skills/thiep` (symlink tới `skills/thiep`).
 
 ## Deploy an toàn
-Cloudflare không tự kéo code từ GitHub — máy nào chạy deploy thì đẩy code trên máy đó. Vì vậy **chỉ deploy bằng `npm run deploy`** (trong `Templexa/`): lệnh tự kiểm code đã commit + khớp GitHub, nhánh khác main → bản xem thử `https://<nhánh>.templexa.pages.dev`, main + `--prod` → templexa.vn.
+Cloudflare không tự kéo code từ GitHub — máy nào chạy deploy thì đẩy code trên máy đó. Vì vậy **chỉ deploy bằng `npm run deploy`** (trong `Templexa/`): lệnh bắt buộc commit trước, rồi tự pull → push → deploy (GitHub luôn giống bản đang chạy), nhánh khác main → bản xem thử `https://<nhánh>.templexa.pages.dev`, main + `--prod` → templexa.vn.
 
 ## Công cụ góp ý sửa thiệp
 `https://templexa.vn/sua-thiep.html?u=<link thiệp>` — thiệp trong khung điện thoại, bấm / kéo vùng / chuột phải để chọn chỗ cần sửa, ghi muốn sửa gì, **Copy gửi** → dán vào chat. Chi tiết: `flows/20-sua-thiep.md`.

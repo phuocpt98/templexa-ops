@@ -38,7 +38,7 @@ node scripts/shoot.js <job> [--card <key>]
 
 ## Bước 5 — Commit + xem thử
 ```bash
-cd Templexa && git add -A && git commit -m "<slug>: dựng thiệp" && git push -u origin job-<slug> && npm run deploy && cd ..
+cd Templexa && git add -A && git commit -m "<slug>: dựng thiệp" && npm run deploy && cd ..   # deploy tự pull → push → deploy
 ```
 → link xem thử `https://job-<slug>.templexa.pages.dev/products/Invitation/…/khach_<slug>/` — mở bằng trình duyệt kiểm thêm 1 lần trên điện thoại (chiều ngang 390px).
 

@@ -30,10 +30,11 @@ Cần sửa phần KHÔNG được sửa → dừng, ghi vào `feedback.md` củ
 
 ## 4. Git + deploy (bắt buộc đúng thứ tự)
 1. Trước khi làm: `cd Templexa && git switch main && git pull` rồi tạo nhánh riêng cho job: `git switch -c job-<slug>`.
-2. Làm xong 1 bước lớn → `git add -A && git commit -m "<slug>: <việc>" && git push -u origin job-<slug>`.
-3. Xem thử: `npm run deploy` → ra link `https://job-<slug>.templexa.pages.dev` — gửi link này cho user duyệt.
-4. **Lên thật (templexa.vn) chỉ khi chủ shop đồng ý**: merge vào main → `npm run deploy -- --prod`.
-5. **Không bao giờ** gõ thẳng `npx wrangler pages deploy` — lệnh đó bỏ qua bước kiểm tra code mới nhất.
+2. Thứ tự LUÔN là: **commit → pull → push → deploy**. Làm xong 1 bước lớn → `git add -A && git commit -m "<slug>: <việc>"`.
+3. Xem thử: `npm run deploy` — lệnh tự **pull** (lấy việc người khác vừa đẩy) → **push** → deploy, ra link `https://job-<slug>.templexa.pages.dev` — gửi link này cho user duyệt. Pull báo xung đột → dừng, báo chủ shop, không tự chọn bên thắng.
+4. **Lên thật (templexa.vn) chỉ khi chủ shop đồng ý**: `git switch main && git pull && git merge job-<slug>` → `npm run deploy -- --prod`.
+5. **Không bao giờ** gõ thẳng `npx wrangler pages deploy` — lệnh đó bỏ qua pull/push.
+6. Không có bước bảo mật/protect thiệp (đã bỏ) — đừng thêm script chặn chuột phải, khoá tên miền, watermark.
 
 ## 5. Quy ước cố định
 - **Ảnh/video tự tạo bằng công cụ của chính bạn — không gọi dịch vụ ngoài.** Icon/hoạ tiết không nền: tạo trên nền xanh `#00FF00` phẳng rồi tách bằng `cut-icons.js` — làm đúng thông số `flows/15-tao-anh.md`, luôn mở `_preview.png` kiểm viền.

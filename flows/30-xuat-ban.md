@@ -32,7 +32,7 @@ node scripts/catalog.js add <job> --name "Thư Mời Tốt Nghiệp UEL — Bả
 - `--name` KHÔNG ghi tên riêng khách nếu là thiết kế mới (nó thành mẫu cho người khác chọn); với thiệp theo mẫu thì ghi được.
 
 ## 5. Gửi duyệt
-1. Commit + push + `npm run deploy` (preview) như flows/10 bước 5.
+1. Commit + `npm run deploy` (preview, tự pull + push) như flows/10 bước 5.
 2. Gửi user: link khách trên preview `https://job-<slug>.templexa.pages.dev/<event|wedding|birthday>/<slug>/` + ảnh `shots/open.webp`.
 3. `node scripts/job.js status <job> cho-duyet "đã gửi link preview"`.
 4. Có góp ý → ghi `feedback.md`, status `sua`, sửa, quay lại bước 5.
@@ -42,8 +42,7 @@ node scripts/catalog.js add <job> --name "Thư Mời Tốt Nghiệp UEL — Bả
 cd Templexa
 git switch main && git pull
 git merge job-<slug>            # xung đột ở config.js/data.js: giữ CẢ HAI phía (2 entry khác nhau)
-git push origin main
-npm run deploy -- --prod
+npm run deploy -- --prod        # tự pull → push main → deploy templexa.vn
 cd ..
 node scripts/job.js status <job> xong "đã lên templexa.vn"
 ```
