@@ -1,0 +1,23 @@
+# Code website là repo riêng — clone vào đây bằng setup.sh, không commit vào templexa-ops
+/Templexa/
+
+# File gốc nặng khách gửi: chỉ nằm trên máy đang làm job (ảnh đã chuyển WebP nằm trong Templexa).
+# Văn bản (chat-*.txt, ghi chú) và ảnh chụp màn hình góp ý (sua-*.png) VẪN được commit để máy khác đọc.
+jobs/*/input/**/*.zip
+jobs/*/input/**/*.rar
+jobs/*/input/**/*.7z
+jobs/*/input/**/*.mp4
+jobs/*/input/**/*.mov
+jobs/*/input/**/*.heic
+jobs/*/input/**/*.HEIC
+jobs/*/input/**/*.jpg
+jobs/*/input/**/*.JPG
+jobs/*/input/**/*.jpeg
+jobs/*/input/**/*.png
+jobs/*/input/**/*.webp
+!jobs/*/input/**/sua-*.png
+!jobs/*/input/**/sua-*.jpg
+jobs/*/webp/
+
+node_modules/
+.DS_Store
