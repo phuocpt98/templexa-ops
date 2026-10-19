@@ -42,11 +42,14 @@ node scripts/catalog.js add <job> --name "Thư Mời Tốt Nghiệp UEL — Bả
 cd Templexa
 git switch main && git pull
 git merge job-<slug>            # xung đột ở config.js/data.js: giữ CẢ HAI phía (2 entry khác nhau)
-npm run deploy -- --prod        # tự pull → push main → deploy templexa.vn
+                                # xung đột CHỈ ở dòng `data.js?v=…` trong file .html: chọn bên nào cũng được
+npm run deploy -- --prod        # tự pull → STAMP data.js?v= → push main → deploy templexa.vn
 cd ..
 node scripts/job.js status <job> xong "đã lên templexa.vn"
 ```
 Gửi khách link `https://templexa.vn/<…>/<slug>/` (không còn chữ `job-…pages.dev`).
+
+**Vì sao có bước STAMP:** Cloudflare giữ `assets/js/data.js` cũ tới 1 ngày → thiệp vừa `catalog.js add` không hiện trên catalog. `deploy -- --prod` tự chạy `npm run build:stamp` (gắn `data.js?v=<mã>` vào 19 trang HTML) và tự commit, khách thấy mẫu mới ngay. **Không** tự chạy `build:stamp` trên nhánh job (mỗi nhánh một mã → merge xung đột). Kiểm: mở `https://templexa.vn/thiep-online.html?pid=<id>` thấy popup thiệp mới là được.
 
 ## Thứ tự hiển thị trên catalog (chủ shop yêu cầu)
 ```bash
