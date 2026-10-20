@@ -43,7 +43,7 @@ cd Templexa
 git switch main && git pull
 git merge job-<slug>            # xung đột ở config.js/data.js: giữ CẢ HAI phía (2 entry khác nhau)
                                 # xung đột CHỈ ở dòng `data.js?v=…` trong file .html: chọn bên nào cũng được
-npm run deploy -- --prod        # tự pull → STAMP data.js?v= → push main → deploy templexa.vn
+npm run deploy -- --prod        # tự pull → STAMP data.js + style.css ?v= → push main → deploy templexa.vn
 cd ..
 node scripts/job.js status <job> xong "đã lên templexa.vn"
 ```
