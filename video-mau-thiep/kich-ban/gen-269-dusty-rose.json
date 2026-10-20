@@ -1,0 +1,71 @@
+{
+  "thiep": "Templexa/products/Invitation/Wedding/gen_269_dusty-rose-flatlay/index.html",
+  "nen": "nen/hoa-hong-pastel.jpg",
+  "nhac": "Templexa/products/shared/music/wedding/Beautiful In White.mp3",
+  "cho": "#envelope",
+  "tieuDe": "MẪU THIỆP CƯỚI ONLINE",
+  "viTriWeb": "phai-duoi",
+  "gioiThieu": "Mẫu thiệp cưới Dusty Rose — mở phong bì hoa khô, cánh hoa rơi, đếm ngược, album ảnh và xác nhận tham dự ngay trên thiệp.",
+  "timeline": [
+    {
+      "sleep": 2500
+    },
+    {
+      "click": "#envelope",
+      "nhac": true
+    },
+    {
+      "sleep": 3000
+    },
+    {
+      "scroll": "#invite",
+      "ms": 3500
+    },
+    {
+      "sleep": 600
+    },
+    {
+      "scrollText": [
+        "h2",
+        "Timeline"
+      ],
+      "ms": 3500
+    },
+    {
+      "sleep": 600
+    },
+    {
+      "scroll": "#count",
+      "ms": 3000
+    },
+    {
+      "sleep": 800
+    },
+    {
+      "scroll": "#giftBtn",
+      "ms": 3000
+    },
+    {
+      "click": "#giftBtn"
+    },
+    {
+      "sleep": 1500
+    },
+    {
+      "scroll": "#rsvpForm",
+      "ms": 2500
+    },
+    {
+      "sleep": 800
+    },
+    {
+      "top": 2500
+    },
+    {
+      "endcard": true
+    },
+    {
+      "sleep": 2500
+    }
+  ]
+}

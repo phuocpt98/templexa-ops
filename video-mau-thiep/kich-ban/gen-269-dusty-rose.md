@@ -45,7 +45,7 @@
 
 - Trước khi quay thật có **vòng khởi động**: mở thiệp, cuộn sẵn 1 vòng cho tài nguyên nạp hết, tải lại trang rồi mới quay — cuộn cho mượt, không lag.
 - Mọi thứ nạp từ **file local** trong repo; chặn hết đường ra mạng ngoài lúc quay.
-- Chữ **templexa.vn hiện đúng 1 chỗ** trên nền sân khấu, vị trí chọn tuỳ nền (mẫu này: góc dưới-phải). Cấu hình ở `CFG.viTriWeb` trong `quay.js`.
+- Chữ **templexa.vn hiện đúng 1 chỗ** trên nền sân khấu, vị trí chọn tuỳ nền (mẫu này: góc dưới-phải). Cấu hình ở `"viTriWeb"` trong `kich-ban/gen-269-dusty-rose.json`.
 - Ảnh trong điện thoại phải **bo tròn theo khung**, không tràn góc vuông (ép bằng clip-path trong `san-khau.html`).
 
 ## Câu giới thiệu mẫu (màn kết + caption khi đăng)

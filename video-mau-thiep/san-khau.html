@@ -38,7 +38,9 @@
     /* Ép cắt theo góc bo — tránh ảnh trong khung tràn góc vuông ra ngoài viền */
     clip-path:inset(0 round 50px);
   }
-  #man-hinh iframe { width:100%; height:100%; border:0; display:block; border-radius:50px; }
+  /* Thiệp render ở bề rộng điện thoại thật (mặc định 414px) rồi phóng lên khung 628px —
+     thiệp hiện đúng giao diện mobile, chữ vẫn nét (Chrome vẽ lại ở tỉ lệ đích). */
+  #man-hinh iframe { border:0; display:block; transform-origin:0 0; }
   /* Tai tho / loa */
   #notch {
     position:absolute; top:12px; left:50%; transform:translateX(-50%);
@@ -99,7 +101,11 @@
   if (q.get('tieu-de')) document.getElementById('tieu-de').textContent = q.get('tieu-de');
   if (q.get('gioi-thieu')) document.getElementById('dong-gioi-thieu').textContent = q.get('gioi-thieu');
   if (q.get('vi-tri')) document.getElementById('dau-an').className = q.get('vi-tri');
-  if (q.get('thiep')) document.getElementById('thiep').src = q.get('thiep');
+  var ifr = document.getElementById('thiep'), mh = document.getElementById('man-hinh');
+  var rong = +(q.get('rong') || 414), tl = mh.clientWidth / rong;
+  ifr.style.width = rong + 'px'; ifr.style.height = (mh.clientHeight / tl) + 'px';
+  ifr.style.transform = 'scale(' + tl + ')';
+  if (q.get('thiep')) ifr.src = q.get('thiep');
   window.hienManKet = function () { document.getElementById('man-ket').classList.add('hien'); };
 </script>
 </body>

@@ -9,8 +9,9 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 - `muc-luc.md` — danh sách mẫu ĐÃ quay: ngày quay, nền đã dùng, tên video, trạng thái đăng + link bài.
 - `san-khau.html` — sân khấu quay: nền cảnh + điện thoại hơi nghiêng + iframe thiệp thật + màn kết templexa.vn.
 - `nen/` — kho ảnh nền theo phong cách (gen sẵn, thêm dần khi cần style mới).
-- `kich-ban/` — mỗi mẫu 1 file kịch bản chi tiết, viết TRƯỚC khi quay (xem mẫu `kich-ban/gen-269-dusty-rose.md`).
-- `quay.js` — script quay tự động (puppeteer): chạy đúng kịch bản, xuất mp4 vào `video/`.
+- `kich-ban/` — mỗi mẫu 2 file viết TRƯỚC khi quay: `<id>.md` (ghi chép cho người đọc: thiệp hoạt động thế nào, bản đồ vị trí) + `<id>.json` (kịch bản máy chạy). Mẫu: `gen-269-dusty-rose.md/.json`.
+- `quay.js` — script quay tự động (puppeteer): đọc `kich-ban/<id>.json`, xuất mp4 vào `video/`. KHÔNG sửa code cho từng mẫu.
+- `font-cache/` — Google Fonts của các thiệp đã quay (lưu trong git). Lúc quay chỉ đọc từ đây, không ra mạng.
 - `video/` — folder đích chứa video thành phẩm (đã gitignore; đăng xong có thể xoá, lịch sử nằm ở `muc-luc.md`).
 
 ## Quy trình mỗi mẫu
@@ -21,40 +22,63 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 2. **Viết kịch bản** vào `kich-ban/<id-mau>.md`: chọn nền trong `nen/` hợp style,
    timeline từng đoạn (giây nào bấm gì, đợi hiệu ứng nào, cuộn đến mục nào, dừng bao lâu),
    câu giới thiệu mẫu, nội dung màn kết, thời lượng dự kiến (~25–30 giây).
-3. **Quay**: chạy `node quay.js <id-mau>` — script mở `san-khau.html` (1080×1920),
-   nạp nền + thiệp theo kịch bản, tự bấm/cuộn/chờ, ghi hình, trộn nhạc của thiệp,
-   xuất `video/<id-mau>.mp4`.
+3. **Quay**: `node video-mau-thiep/quay.js <id-mau> --giay 8` để thử nhanh, xem vài khung; ổn thì
+   `node video-mau-thiep/quay.js <id-mau> --hd` (bản đăng, ~2 phút). Script mở `san-khau.html` (1080×1920),
+   nạp nền + thiệp, chạy timeline, chụp từng khung, trộn nhạc, xuất `video/<id-mau>.mp4`.
+   - Báo **thiếu font** → nhắn chủ shop chạy `node video-mau-thiep/quay.js <id-mau> --tai-font` trên máy có mạng
+     và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
+   - Trước khi gửi duyệt: trích 6–8 khung (`ffmpeg -ss <giây> -i video/<id>.mp4 -frames:v 1 x.png`) mở xem —
+     đúng font, đúng mục, chữ nét, màn kết đủ chữ.
 4. **Ghi mục lục**: thêm dòng vào `muc-luc.md` (ngày, mẫu, nền, video, trạng thái "chờ duyệt").
 5. **Duyệt & đăng**: user duyệt video → đăng Page bằng connector facebook → cập nhật mục lục "đã đăng + link".
 
 ## Thông số chuẩn
 
-- Video: 1080×1920, mp4 (H.264), 25–30 giây.
+- Video: 1080×1920, 30 khung/giây, mp4 (H.264 crf 17 + AAC), 25–30 giây. Bản đăng luôn quay `--hd`.
 - Điện thoại trên sân khấu: nghiêng nhẹ ~4°, có đổ bóng, bo góc.
 - Màn kết: thiệp cuộn về phần mở đầu, chữ TEMPLEXA + templexa.vn + câu giới thiệu hiện **đè lên hình trong 2 giây** (không chuyển sang nền tối).
-- Dấu ấn **templexa.vn hiện đúng 1 chỗ** trên nền sân khấu; vị trí chọn theo từng nền (góc trên-trái / trên-phải / dưới-trái / dưới-phải / giữa-dưới), đặt ở `CFG.viTriWeb`.
-- Trước lượt quay thật luôn có **vòng khởi động** (mở thiệp + cuộn sẵn 1 vòng + tải lại) để tài nguyên nạp hết, cuộn không lag. Mọi tài nguyên nạp từ file local; lúc quay chặn hết đường ra mạng ngoài.
+- Dấu ấn **templexa.vn hiện đúng 1 chỗ** trên nền sân khấu; vị trí chọn theo từng nền (góc trên-trái / trên-phải / dưới-trái / dưới-phải / giữa-dưới), đặt ở `"viTriWeb"` trong `kich-ban/<id>.json`.
+- Trước lượt quay thật luôn có **vòng khởi động** (mở thiệp + cuộn sẵn 1 vòng + tải lại) để tài nguyên nạp hết. Mọi tài nguyên nạp từ file local + `font-cache/`; lúc quay chặn hết đường ra mạng ngoài.
+- Thiệp trong điện thoại render ở bề rộng điện thoại thật (`rong`, mặc định 414px) rồi phóng lên khung — giao diện mobile đúng như khách thấy.
 - Ảnh trong điện thoại phải bo tròn theo khung (clip-path ở `san-khau.html`), không tràn góc vuông.
 - Âm thanh: dùng chính nhạc nền của thiệp (file trong `Templexa/products/shared/music/...`),
   trộn bằng ffmpeg, nhỏ dần ở cuối.
 
-## Kinh nghiệm kỹ thuật (rút ra từ bản quay thử gen_269)
+## Kịch bản máy chạy (`kich-ban/<id>.json`)
 
-- **Phải đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
-  vd gen_269: `#collage` là cảnh hero ở ĐẦU trang (không phải album giữa trang), đếm ngược ở ~2769/6141.
-  Đo bằng cách mở thiệp, bấm mở, đọc `getBoundingClientRect().top + scrollY` của từng mục tiêu.
-- **Cuộn TRÔI LIÊN TỤC trong trang** (đã cài trong `quay.js`): vòng lặp theo từng khung hình,
-  mỗi bước đo lại vị trí mục tiêu rồi trượt một đoạn tỉ lệ theo khoảng cách còn lại (nhanh ở xa,
-  chậm dần khi tới nơi), dùng `scrollTo({behavior:'instant'})`. KHÔNG dùng cuộn theo nấc bánh xe —
-  chuyển động rời nấc làm video giật. Đo vị trí bằng `getBoundingClientRect()` trực tiếp nên
-  vẫn đúng dù thiệp có thu nhỏ nội dung (transform scale).
-- **Bồi khung lên 30 khung/giây khi dựng** (ffmpeg minterpolate): máy quay chỉ bắt được ~7 khung/giây
-  nên phải suy thêm khung trung gian, nếu không video phát ra bị giật dù cuộn đã mượt.
-  Khâu này chạy nền ~5 phút cho clip 30 giây — cứ để máy chạy, không cần chờ tay.
-- Ghép khung hình ghi hình phải giữ **đúng thời gian thật** giữa các khung (không nén đoạn đứng yên).
-- Bấm các nút trong thiệp bằng `el.click()` trong iframe — tránh click của puppeteer tự cuộn nhảy cóc.
-- Nhận diện iframe thiệp bằng dấu hiệu có dấu `/` thật (vd `/gen_269_dusty-rose-flatlay/`) —
-  URL trang sân khấu cũng chứa tên mẫu trong tham số, dễ bắt nhầm khung chính.
+```json
+{
+  "thiep": "Templexa/products/Invitation/Wedding/gen_269_dusty-rose-flatlay/index.html",
+  "nen": "nen/hoa-hong-pastel.jpg",
+  "nhac": "Templexa/products/shared/music/wedding/Beautiful In White.mp3",
+  "cho": "#envelope",              // phần tử phải có thì mới coi là thiệp đã tải xong
+  "tieuDe": "MẪU THIỆP CƯỚI ONLINE",
+  "viTriWeb": "phai-duoi",         // trai-tren | phai-tren | trai-duoi | phai-duoi | giua-duoi
+  "gioiThieu": "…câu màn kết…",
+  "timeline": [
+    { "sleep": 2500 },                         // đứng yên (ms)
+    { "click": "#envelope", "nhac": true },    // bấm; "nhac": nhạc bắt đầu từ lúc này
+    { "scroll": "#invite", "ms": 3500 },       // cuộn tới phần tử (cách mép trên 40px)
+    { "scrollText": ["h2", "Timeline"], "ms": 3500 },  // cuộn tới thẻ chứa chữ
+    { "top": 2500 },                           // cuộn về đầu trang
+    { "endcard": true }, { "sleep": 2500 }     // màn kết đè lên hình
+  ]
+}
+```
+Tổng thời lượng = cộng các `sleep` + `ms`. Nhạc tự nhỏ dần 2,5 giây cuối, theo độ dài thật của video.
+Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
+
+## Kinh nghiệm kỹ thuật
+
+- **Quay theo đồng hồ ảo, không ghi màn hình** (từ 20/10/2026 — bản ghi màn hình cũ bị mờ và giật):
+  `quay.js` đóng băng setTimeout/setInterval/requestAnimationFrame/Date/animation CSS trong mọi khung,
+  mỗi khung đẩy đúng 1/30 giây rồi chụp 1 ảnh. Cuộn tính theo công thức (nhanh dần–chậm dần), nên dù
+  máy chậm, video vẫn đủ 30 khung đều nhau. KHÔNG dùng lại screencast + minterpolate (bồi khung làm nhoè chữ).
+- `--hd` vẽ trang ở 2× rồi thu nhỏ bằng lanczos: viền ảnh/chữ trên điện thoại nghiêng 4° hết răng cưa.
+- Đếm ngược chạy theo ngày thật lúc quay — mẫu có ngày đã qua sẽ hiện 00, chấp nhận (chủ shop chốt 20/10, không giả ngày).
+- **Đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
+  vd gen_269: `#collage` là cảnh hero ở ĐẦU trang. Đo bằng `getBoundingClientRect().top + scrollY` sau khi mở thiệp.
+- Bấm nút trong thiệp bằng `el.click()` trong iframe (đã cài trong `quay.js`).
 
 ## Quy ước đặt tên
 

@@ -23,6 +23,8 @@ templexa-ops/
 │   ├── SKILL.md             A. theo mẫu · B. thiết kế mới · C. danh sách khách · D. sửa · luật cứng · checklist
 │   └── refs/                tài liệu thiết kế + bài học (wedding-*.md), profiles/ cho bé/sinh nhật/kỷ niệm, legacy-*.md
 │
+├── video-mau-thiep/     ← quay video dọc giới thiệu mẫu thiệp: SKILL.md · kich-ban/<id>.json · quay.js · nen/ · font-cache/
+│
 ├── scripts/             ← mỗi việc 1 lệnh (cách dùng ghi ở đầu mỗi file)
 │   ├── job.js               new · list · find · show · set · check · status · archive · index
 │   ├── fetch.js             tải link (cả Google Drive) vào input/, tự giải nén zip/rar/7z
