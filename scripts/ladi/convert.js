@@ -10,6 +10,10 @@
  *     --title "..."       <title> thiệp
  *     --work <thư mục>    nơi để báo cáo + ảnh so sánh (mặc định <thư mục LadiPage>/_convert)
  *     --no-compare        bỏ bước chụp so sánh
+ *     --templexa          áp luật Templexa: QR → QR Facebook Page, nút gửi "Gửi lời chúc & xác nhận",
+ *                         dòng templexa.vn cuối thiệp, og:image + cắt og-cover.jpg từ bìa khổ máy tính
+ *     --desc "..."        meta description
+ *     --music <file>      nhạc nền khi bản gốc không có (vd ../Templexa/products/shared/music/wedding/Sugar.mp3)
  *
  * Phần script KHÔNG tự chuyển được (khối HTML lạ, carousel, script riêng) → để chỗ trống có class `todo-ai`
  * và liệt kê trong <work>/REPORT.md — AI đọc báo cáo rồi viết lại từng mục. Quy trình: flows/16-chuyen-thiep-ladi.md
@@ -28,7 +32,7 @@ const extractInPage = require('./extract.js');
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : d);
-const VALUED = ['--out', '--key', '--date', '--title', '--work'];
+const VALUED = ['--out', '--key', '--date', '--title', '--work', '--desc', '--music'];
 const SRC = path.resolve(argv.find((a, k) => !a.startsWith('--') && !VALUED.includes(argv[k - 1])) || '.');
 const OUT = opt('--out') && path.resolve(opt('--out'));
 if (!fs.existsSync(path.join(SRC, 'index.html')) || !OUT) {
@@ -38,6 +42,13 @@ if (!fs.existsSync(path.join(SRC, 'index.html')) || !OUT) {
 const KEY = opt('--key', path.basename(OUT).replace(/[^a-z0-9]/gi, '').slice(0, 12));
 const WORK = path.resolve(opt('--work', path.join(SRC, '_convert')));
 const DATE = opt('--date', '');
+const TPX = argv.includes('--templexa');
+const QR_FB = path.join(TEMPLEXA, 'products/shared/images/icons/qr-facebook-templexa.webp');
+// chạy lại: dọn ảnh/font cũ do CHÍNH script sinh (nhận biết qua dòng chú thích đầu index.html)
+const prev = path.join(OUT, 'index.html');
+if (fs.existsSync(prev) && /scripts\/ladi\/convert\.js/.test(fs.readFileSync(prev, 'utf8').slice(0, 3000))) {
+  ['images', 'fonts'].forEach((d) => fs.rmSync(path.join(OUT, d), { recursive: true, force: true }));
+}
 fs.mkdirSync(path.join(OUT, 'images'), { recursive: true });
 fs.mkdirSync(WORK, { recursive: true });
 let MW = 420, DW = 960;
@@ -106,7 +117,11 @@ function variant(rel, box) {
 function asset(u, sub, box) {
   let rel = urlToRel(u);
   if (!rel) return null;
-  rel = variant(rel, box);
+  if (TPX && /qr/i.test(path.basename(rel)) && fs.existsSync(QR_FB)) {   // QR của bên bán gốc → QR Facebook Page Templexa
+    if (!asset.qrNoted) { NOTE.push('QR quà mừng của bản gốc đã thay bằng QR Facebook Page Templexa.'); asset.qrNoted = true; }
+    return path.relative(OUT, QR_FB).split(path.sep).join('/');
+  }
+  // (không đoán bản sWxH theo tên — tên không phản ánh cỡ thật; lấy đúng file trình duyệt đã hiển thị khi đo)
   if (ASSET.has(rel)) return ASSET.get(rel);
   const file = path.join(SRC, rel);
   if (!fs.existsSync(file)) { NOTE.push(`Thiếu file ảnh gốc: ${rel}`); ASSET.set(rel, rel); return rel; }
@@ -187,8 +202,10 @@ function boxcss(st, opts = {}, box) {
     if (/gradient/.test(st['background-image'])) css.push('background-image:' + st['background-image']);
     else { const a = asset(st['background-image'], null, box); if (a) css.push(`background-image:url(${a});background-size:${st['background-size']};background-position:${st['background-position']};background-repeat:${st['background-repeat'] || 'no-repeat'}` + (st['background-attachment'] === 'fixed' ? ';background-attachment:fixed' : '')); }
   }
-  const w = st['border-top-width'];
-  if (w && w !== '0px' && st['border-top-style'] && st['border-top-style'] !== 'none') css.push(`border:${w} ${st['border-top-style']} ${st['border-top-color']}`);
+  const sides = ['top', 'right', 'bottom', 'left'].map((k) => [k, st[`border-${k}-width`], st[`border-${k}-style`] || st['border-top-style'], st[`border-${k}-color`] || st['border-top-color']]);
+  const on = sides.filter(([, w, sty]) => w && w !== '0px' && sty && sty !== 'none');
+  if (on.length === 4 && new Set(on.map((x) => x.slice(1).join(' '))).size === 1) css.push(`border:${on[0][1]} ${on[0][2]} ${on[0][3]}`);
+  else on.forEach(([k, w, sty, c]) => css.push(`border-${k}:${w} ${sty} ${c}`));
   if (st['border-radius'] && st['border-radius'] !== '0px') css.push('border-radius:' + st['border-radius']);
   if (st['box-shadow'] && st['box-shadow'] !== 'none') css.push('box-shadow:' + st['box-shadow']);
   if (st.filter && st.filter !== 'none') css.push('filter:' + st.filter);
@@ -212,7 +229,9 @@ function pos(n, text) {
   return c;
 }
 function R(sel, n, fn) {
-  const m = fn(n); rules.push([sel, m]);
+  const m = fn(n);
+  if (/^#[a-z0-9]+$/.test(sel) && n.tf && !n.fix) m.push('transform:' + n.tf);   // xoay / nghiêng của thiết kế
+  rules.push([sel, m]);
   const d0 = DMAP[n.id];
   if (d0) { const d = fn(d0).filter((x) => !m.includes(x)); if (d.length) drules.push([sel, d]); }
 }
@@ -229,11 +248,12 @@ function tdiff(n) {
 }
 const FIXED = [];
 function fixedCss(n) {
-  const [l, r, t, b] = n.fix;
-  return ['position:fixed', `left:${l === 'auto' ? 'auto' : px(l)}`, `right:${r === 'auto' ? 'auto' : px(r)}`, `top:${t === 'auto' ? 'auto' : px(t)}`, `bottom:${b === 'auto' ? 'auto' : px(b)}`, `width:${px(n.pos[2])}`, `height:${px(n.pos[3])}`, 'z-index:50'];
+  const [l, r, t, b, tf] = n.fix;
+  return ['position:fixed', `left:${l === 'auto' ? 'auto' : px(l)}`, `right:${r === 'auto' ? 'auto' : px(r)}`, `top:${t === 'auto' ? 'auto' : px(t)}`, `bottom:${b === 'auto' ? 'auto' : px(b)}`, `width:${px(n.pos[2])}`, `height:${px(n.pos[3])}`, 'z-index:50'].concat(tf && tf !== 'none' ? ['transform:' + tf] : []);
 }
 
 let SECNAME = {};
+const idOf = (x) => SECNAME[x] || sid(x);
 const TARGETS = new Set();   // phần tử là đích của nút ẩn/hiện
 function actions(n) {
   const cs = n.ev && n.ev.cs; if (!cs) return '';
@@ -242,9 +262,20 @@ function actions(n) {
     if (c.a === 'popup' && c.dw) out.push({ t: 'popup', id: sid(c.dw) });
     else if (c.a === 'collapse' && c.dw) out.push({ t: 'collapse', id: sid(c.dw) });
     else if (c.a === 'hidden_show' && c.dw) out.push({ t: 'toggle', id: sid(c.dw) });
+    else if (c.a === 'hidden_show') {   // dE = ẩn, dD = hiện (phần, popup, nhóm)
+      if ((c.dE || []).length) out.push({ t: 'hide', ids: c.dE.map(idOf), on: c.dr === 'hover' ? 'hover' : 'click' });
+      if ((c.dD || []).length) out.push({ t: 'show', ids: c.dD.map(idOf), on: c.dr === 'hover' ? 'hover' : 'click' });
+    } else if (c.a === 'set_style' && c.dw) {   // đổi kiểu khi rê chuột / bấm
+      const css = Object.entries(c.dP || {}).map(([k, v]) => `${k}:${v}`); if (c.dS) css.push('background-color:' + c.dS);
+      out.push({ t: 'style', id: idOf(c.dw), css: css.join(';'), on: c.dr === 'hover' ? 'hover' : 'click' });
+    } else if (c.a === 'copy_clipboard') out.push({ t: 'copy', text: c.dw || '' });
+    else if (c.a === 'dropbox' && c.dw) out.push({ t: 'dropbox', id: sid(c.dw), at: (c.dO && c.dO.dt) || 'bottom_left' });
     else if (c.a === 'section' && c.dw) out.push({ t: 'section', id: SECNAME[c.dw] || sid(c.dw) });
     else if (c.a === 'custom_script') {
       const s = c.event_custom_script || '';
+      const later = s.match(/setTimeout\(\s*\(\)\s*=(?:&#62;|>)\s*(?:&#123;|\{)?\s*\$\((?:&#34;|")([.#][\w-]+)(?:&#34;|")\)\.hide\(\)\s*(?:&#125;|\})?\s*,\s*(\d+)\)/);
+      if (later) { out.push({ t: 'hideLater', sel: later[1], ms: +later[2] }); continue; }
+      if (/\.css\((?:&#34;|")height(?:&#34;|")\s*,\s*(?:&#34;|")100%/.test(s) || /scrollIntoView/.test(s)) continue;   // popup phủ màn / cuộn — đã xử lý chung
       if (/clearCanvas/.test(s)) out.push({ t: 'fn', fn: 'sig.clear' });
       else if (/previewSignature/.test(s)) out.push({ t: 'fn', fn: 'sig.preview' });
       else if (/saveSignature/.test(s)) out.push({ t: 'fn', fn: 'sig.save' });
@@ -263,11 +294,23 @@ function extraClass(n) {
   if (/off_speaker/.test(c)) out.push('off_speaker');
   if (/on_speaker/.test(c)) out.push('on_speaker');
   if (/Signature_BTN_luu/.test(c)) out.push('sig-save');
+  c.split(/\s+/).filter((k) => k && !/^(class_tenKhachMoi|photoBookImage|effect-|off_speaker|on_speaker|Signature_BTN)/.test(k)).forEach((k) => out.push(k));
   return out.length ? ' ' + out.join(' ') : '';
 }
 
 let WISHES = [];
 const SIGS = [];
+function snapAttrs(n) {
+  const a = n.attrs || {}; let out = '';
+  for (const [k, v] of Object.entries(a)) { if (k === 'class' || !v && v !== '') continue; out += ` ${k}="${esc(v)}"`; }
+  if (n.vars) out += ` style="${esc(n.vars)}"`;
+  return { cls: (a.class || '').trim(), attrs: out };
+}
+function fixSnap(raw) {
+  return raw.replace(/<script(?![^>]*application\/json)[\s\S]*?<\/script>/g, '').replace(/<audio[\s\S]*?<\/audio>|<audio[^>]*\/?>/g, '')
+    .replace(/(src|data-src)="([^"]+)"/g, (m, k, u) => { if (/^(https?:|data:)/.test(u) && !/127\.0\.0\.1/.test(u)) return m; const a = asset(u); return a ? `${k}="${a}"` : m; })
+    .replace(/url\((&quot;|["'])?([^"')&]+)(&quot;|["'])?\)/g, (m, q, u) => { if (/^data:/.test(u)) return m; const a = asset(u); return a ? `url(${a})` : m; });
+}
 function htmlCode(n) {
   const raw = n.raw || ''; const s = sid(n.id);
   if (/previewContainer/.test(raw)) {
@@ -292,15 +335,28 @@ function htmlCode(n) {
     }
     const color = (raw.match(/#MessageBox\s*>\s*\*\s*\{\s*color:\s*([^;]+);/) || [, ''])[1];
     if (color) rules.push([`#${s} .wish p,#${s} .wish b`, [`color:${color.trim()}`]]);
-    return `<div class="el wishes" id="${s}"><div id="wishList"></div></div>`;
+    const empty = (raw.replace(/<style[\s\S]*?<\/style>/g, '').match(/<div[^>]*class="[^"]*(empty|placeholder|first)[^"]*"[^>]*>([\s\S]*?)<\/div>/i) || [])[2]
+      || (WISHES.length ? '' : raw.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    return `<div class="el wishes" id="${s}"><div id="wishList"></div>${empty ? `<div class="wish wish-empty">${empty.replace(/<[^>]+>/g, ' ').trim()}</div>` : ''}</div>`;
   }
   if (/<iframe[^>]*google\.com\/maps/.test(raw)) {
     const src = (raw.match(/<iframe[^>]*src="([^"]+)"/) || [])[1];
     return `<div class="el map" id="${s}"><iframe src="${src}" title="Bản đồ" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>`;
   }
   if (/audio_music|<audio/.test(raw)) return '';
+  let snap = fixSnap(raw);
+  const dRaw = DMAP[n.id] && DMAP[n.id].raw;   // widget tự xếp theo độ rộng màn → bản máy tính chụp riêng
+  if (dRaw && fixSnap(dRaw) !== snap && /<img|background-image|style="[^"]*width/.test(dRaw)) snap = `<div class="snap-m">${snap}</div><div class="snap-d">${fixSnap(dRaw)}</div>`;
+  const sa = snapAttrs(n);
+  if (/class="countdown-item"/.test(snap)) {
+    if (!DATE) NOTE.push(`Đếm ngược #${s} (widget) — truyền --date để đếm tới ngày cưới.`);
+    return `<div class="el cd snap ${sa.cls}${extraClass(n)}" id="${s}"${sa.attrs}${DATE ? ` data-at="${DATE}"` : ''}${animAttr(n)}><div class="ladi-html-code">${snap}</div></div>`;
+  }
+  if (/wb-(msg|rsvp)-form|wb-sig-root|wb-tl|data-name="/.test(snap) || !/<(input|textarea|select|button|canvas)/.test(snap)) {
+    return `<div class="el snap ${sa.cls}${extraClass(n)}" id="${s}"${sa.attrs}${animAttr(n)}><div class="ladi-html-code">${snap}</div></div>`;   // widget đã biết (runtime gắn thao tác) hoặc chỉ hiển thị
+  }
   TODO.push(`#${s} khối HTML riêng (${raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'không chữ'}) — đã chép nguyên vào thiệp, cần AI kiểm/viết lại (bỏ jQuery, đổi ảnh).`);
-  return `<div class="el todo-ai" id="${s}">${raw.replace(/<script[\s\S]*?<\/script>/g, '')}</div>`;
+  return `<div class="el todo-ai" id="${s}">${snap}</div>`;
 }
 
 function countdown(n) {
@@ -333,7 +389,9 @@ function form(n) {
     const c = [`left:${px(it.pos[0])}`, `top:${px(it.pos[1])}`, `width:${px(it.pos[2])}`, `height:${px(it.pos[3])}`];
     if (it.button !== undefined) {
       rules.push([`#${fs_}`, c.concat([`background-color:${it.bb['background-color']}`]).concat(boxcss(it.bst, { skipbg: true }))]);
-      html += `<button type="submit" class="f-btn ${tclass(it.st)}" id="${fs_}"><span>${clean(it.button)}</span></button>`;
+      let label = clean(it.button);
+      if (TPX) label = /[a-zà-ỹ]/.test(label.replace(/<[^>]+>/g, '')) ? 'Gửi lời chúc &amp; xác nhận' : 'GỬI LỜI CHÚC &amp; XÁC NHẬN';   // luật Templexa: 1 nút
+      html += `<button type="submit" class="f-btn ${tclass(it.st)}" id="${fs_}"><span>${label}</span></button>`;
     } else {
       rules.push([`#${fs_}`, c.concat(boxcss(it.bg))]);
       if (it.st && it.st['font-size']) rules.push([`#${fs_} .f-ctl,#${fs_} label`, [`font-size:${it.st['font-size']}`, `color:${it.st.color}`, `font-family:${it.st['font-family']}`]]);
@@ -393,10 +451,11 @@ function emit(n) {
     R(`#${s}`, n, (z) => boxcss(z.st, { skipbg: true }).concat(['overflow:hidden']));
     const url = asset(n.img[0], null, [parseFloat(n.img[3]), parseFloat(n.img[4])]);
     R(`#${s} i`, n, (z) => {
-      const [, l, tp, w, h] = z.img; const u = asset(z.img[0], null, [parseFloat(w), parseFloat(h)]) || url;
+      const [, l, tp, w, h, bs, bp] = z.img; const u = asset(z.img[0], null, [parseFloat(w), parseFloat(h)]) || url;
+      const fit = bs && bs !== 'auto' && bs !== 'cover' ? `${bp || '0 0'}/${bs}` : `${bp && bp !== '0% 0%' ? bp : '0 0'}/cover`;   // điểm lấy nét riêng của ảnh (bản v2)
       // luôn ghi đúng cỡ lớp ảnh như LadiPage (khung có viền thì viền che bớt ảnh, không co ảnh lại)
       const op = parseFloat(z.eop);   // độ mờ của cả phần tử → gắn vào lớp ảnh để hiệu ứng xuất hiện không ghi đè
-      return [`left:${px(l)}`, `top:${px(tp)}`, `width:${px(w)}`, `height:${px(h)}`, `background:url(${u}) 0 0/cover no-repeat`].concat(op < 1 ? [`opacity:${op}`] : []);
+      return [`left:${px(l)}`, `top:${px(tp)}`, `width:${px(w)}`, `height:${px(h)}`, `background:url(${u}) ${fit} no-repeat`].concat(op < 1 ? [`opacity:${op}`] : []);
     });
     return `<div class="el im${x}${hid}" id="${s}"${a}><i></i></div>`;
   }
@@ -433,16 +492,25 @@ function section(sec, idx, DSEC) {
   const ov = sec.ov && boxcss(sec.ov);
   if (ov && ov.length) { rules.push([`#${name} > .sec-ov`, ov]); body += '<div class="sec-ov"></div>'; }
   body += sec.kids.map(emit).join('');
-  return `\n<!-- ===== ${name}: ${esc(firstText.slice(0, 50))} ===== -->\n<section class="sec" id="${name}">${body}</section>\n`;
+  return `\n<!-- ===== ${name}: ${esc(firstText.slice(0, 50))} ===== -->\n<section class="sec${sec.disp === 'none' ? ' hid' : ''}" id="${name}">${body}</section>\n`;
 }
 
 function popup(p) {
   const s = sid(p.id);
   const [w, h] = p.box;
   const bg = boxcss(p.bg);
-  rules.push([`#${s} .pop-box`, [`width:${px(w)}`, `height:${px(h)}`].concat(bg)]);
-  const d = DMAP[p.id]; if (d && d.box) { const dc = [`width:${px(d.box[0])}`, `height:${px(d.box[1])}`].filter((x) => !rules[rules.length - 1][1].includes(x)); if (dc.length) drules.push([`#${s} .pop-box`, dc]); }
-  return `<div class="pop" id="${s}" hidden><div class="pop-box">${(p.kids || []).map(emit).join('')}<button class="pop-x" type="button" aria-label="Đóng">×</button></div></div>\n`;
+  rules.push([`#${s} .pop-box`, [`width:${px(w)}`, `height:${px(h)}`]]);
+  if (bg.length) rules.push([`#${s} .pop-bg`, bg]);   // nền popup là lớp riêng (bộ lọc mờ… không ảnh hưởng nội dung)
+  const fullPop = /height(?:&#34;|\\")\s*,\s*(?:&#34;|\\")100%/.test(JSON.stringify((p.ev || {}).cs || []));
+  const d = !fullPop && DMAP[p.id]; if (d && d.box) { const dc = [`width:${px(d.box[0])}`, `height:${px(d.box[1])}`].filter((x) => !rules[rules.length - 1][1].includes(x)); if (dc.length) drules.push([`#${s} .pop-box`, dc]); }
+  const ev = p.ev || {}; const scr = JSON.stringify(ev.cs || []);
+  const full = /height(?:&#34;|\\")\s*,\s*(?:&#34;|\\")100%/.test(scr);
+  const drop = /^DROPBOX/.test(p.id);
+  const openAt = ev.cd ? ` data-open="${(+ev.cc || 0) * 1000}"` : '';
+  const ov = (String(ev.U || '').match(/background-color:\s*([^;]+)/) || [])[1];
+  if (ov) rules.push([`#${s}`, [`background:${ov}`]]);
+  if (full) rules.push([`#${s} .pop-box`, ['height:100vh']]);
+  return `<div class="pop${full ? ' pop-full' : ''}${drop ? ' dropbox' : ''}" id="${s}"${openAt} hidden><div class="pop-box">${bg.length ? '<div class="pop-bg"></div>' : ''}${(p.kids || []).map(emit).join('')}${full || drop ? '' : '<button class="pop-x" type="button" aria-label="Đóng">×</button>'}</div></div>\n`;
 }
 
 // ---------------------------------------------------------------- chạy
@@ -471,10 +539,17 @@ function popup(p) {
   for (const p of D.popups) { DMAP[p.id] = p; for (const n of walk(p.kids || [])) DMAP[n.id] = n; }
   const DSEC = {}; D.sections.forEach((x) => { DSEC[x.id] = x; });
   Object.values(M.eventData || {}).forEach((e) => (e.cs || []).forEach((c) => { if (['collapse', 'hidden_show'].includes(c.a) && c.dw) TARGETS.add(c.dw); }));
-  const visible = M.sections.filter((x) => x.disp !== 'none');
+  const visible = M.sections;   // gồm cả phần ẩn sẵn (hiện khi bấm nút)
   visible.forEach((x, i) => { SECNAME[x.id] = 'sec' + (i + 1); });
 
   let body = visible.map((x, i) => section(x, i, DSEC)).join('');
+  if (TPX) {
+    const last = visible[visible.length - 1]; const bgc = (last.bg && last.bg['background-color']) || '';
+    const rgb = (bgc.match(/\d+/g) || [255, 255, 255]).map(Number);
+    const dark = !/, 0\)$/.test(bgc) && (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114) < 140 || !!(last.bg && last.bg['background-image'] && last.bg['background-image'] !== 'none');
+    const k = body.lastIndexOf('</section>');
+    body = body.slice(0, k) + `<a class="closing-brand${dark ? ' on-dark' : ''}" href="https://templexa.vn" target="_blank" rel="noopener">Thiệp online · <b>templexa.vn</b></a>` + body.slice(k);
+  }
   const pops = M.popups.map(popup).join('');
 
   // font
@@ -496,6 +571,30 @@ function popup(p) {
       });
       if (good) { fontFace += css.replace(/\s+/g, ' ') + '\n'; ok = true; }
     }
+    if (!ok) {   // thiệp này không kèm file → tìm @font-face cùng tên ở các thiệp khác cùng thư mục cha
+      for (const dir of fs.readdirSync(path.dirname(SRC))) {
+        const files = [path.join(path.dirname(SRC), dir, 'index.html')];
+        try { fs.readdirSync(path.join(path.dirname(SRC), dir, 'assets/css')).forEach((f) => files.push(path.join(path.dirname(SRC), dir, 'assets/css', f))); } catch (e) {}
+        for (const f of files) {
+          if (!fs.existsSync(f) || !/\.(css|html)$/.test(f)) continue;
+          const txt = fs.readFileSync(f, 'utf8');
+          for (const m of txt.matchAll(/@font-face\s*\{[^}]*\}/g)) {
+            if (!new RegExp('font-family:\\s*["\']?' + fam.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']?\\s*;').test(m[0])) continue;
+            let good = true;
+            const css = m[0].replace(/url\(["']?([^"')]+)["']?\)/g, (mm, u) => {
+              const src = path.resolve(path.dirname(f), u.split('?')[0]);
+              if (!fs.existsSync(src)) { good = false; return mm; }
+              fs.mkdirSync(path.join(OUT, 'fonts'), { recursive: true });
+              fs.copyFileSync(src, path.join(OUT, 'fonts', path.basename(src)));
+              return `url(fonts/${path.basename(src)})`;
+            });
+            if (good) { fontFace += css.replace(/\s+/g, ' ') + '\n'; ok = true; }
+          }
+          if (ok) break;
+        }
+        if (ok) { NOTE.push(`Font "${fam}" lấy từ thiệp ${dir} (thiệp này không kèm file).`); break; }
+      }
+    }
     if (ok) { if (!GOOGLE.includes(fam)) NOTE.push(`Font riêng "${fam}" chép kèm thiệp (fonts/) — kiểm bản quyền font trước khi bán.`); continue; }
     if (GOOGLE.includes(fam)) {
       const ws = [...f.weights].map(Number).filter((w) => w >= 100).sort();
@@ -516,7 +615,11 @@ function popup(p) {
       audio = '<audio id="bgm" loop preload="auto" src="nhac-nen.mp3"></audio>';
     }
   }
-  if (!audio) NOTE.push('Bản gốc không có nhạc nền — thêm từ products/shared/music/.');
+  if (!audio && opt('--music')) {
+    const mf = path.resolve(opt('--music'));
+    if (fs.existsSync(mf)) { audio = `<audio id="bgm" loop preload="auto" src="${path.relative(OUT, mf).split(path.sep).map(encodeURIComponent).join('/')}"></audio>`; NOTE.push('Bản gốc không có nhạc — đã gắn ' + path.basename(mf) + ' (phát ở lần chạm đầu tiên).'); }
+  }
+  if (!audio) NOTE.push('Bản gốc không có nhạc nền — thêm từ products/shared/music/ (cờ --music).');
 
   // hiệu ứng nền (effect-*) từ StyleWedding.css
   let fx = '';
@@ -534,6 +637,9 @@ function popup(p) {
     }
   }
 
+  let vendor = (M.vendorCss || '').replace(/url\((["']?)([^"')]+)\1\)/g, (m, q, u) => {
+    if (/^data:/.test(u)) return m; const a = asset(u.startsWith('http') ? u : 'assets/css/' + u); return a ? `url(${a})` : m;
+  });
   await writeAssets();
 
   // keyframes cần dùng
@@ -545,17 +651,18 @@ function popup(p) {
   const runtime = fs.readFileSync(path.join(__dirname, 'runtime.js'), 'utf8');
   const html = tpl
     .replace('{{TITLE}}', () => esc(opt('--title', M.title || 'Thiệp online')))
-    .replace('{{FONTS}}', () => fontLink)
+    .replace('{{FONTS}}', () => fontLink + (TPX ? `\n<meta property="og:image" content="https://templexa.vn/${path.relative(TEMPLEXA, path.join(OUT, 'og-cover.jpg')).split(path.sep).join('/')}">` : ''))
+    .replace(/<meta name="description" content="[^"]*">/, () => `<meta name="description" content="${esc(opt('--desc', opt('--title', M.title || 'Thiệp online')))}">`)
     .replace('/*FONTFACE*/', () => fontFace)
     .replace('/*TYPO*/', () => [...typo.values()].map((t) => `.${t.name}{${t.css}}`).join('\n'))
     .replace('/*LAYOUT*/', () => css(rules))
     .replace('/*DESKTOP*/', () => css(drules))
-    .replace('/*FX*/', () => fx)
+    .replace('/*FX*/', () => fx + (vendor ? '\n/* ===== CSS riêng của thiệp gốc (widget, hiệu ứng) ===== */\n' + vendor : ''))
     .replace('/*KEYFRAMES*/', () => kfs)
     .replace('<!--BODY-->', () => body)
     .replace('<!--POPUPS-->', () => pops + (audio ? '\n' + audio : ''))
     .replace(/\{\{MW\}\}/g, () => MW).replace(/\{\{DW\}\}/g, () => DW).replace(/\{\{DW2\}\}/g, () => DW / 2)
-    .replace('/*CARD*/', () => `window.CARD=${JSON.stringify({ key: KEY, mw: MW })};\nwindow.WISHES=${JSON.stringify(WISHES)};`)
+    .replace('/*CARD*/', () => `window.CARD=${JSON.stringify({ key: KEY, mw: MW, date: DATE || null })};\nwindow.WISHES=${JSON.stringify(WISHES)};`)
     .replace('/*RUNTIME*/', () => runtime);
   fs.writeFileSync(path.join(OUT, 'index.html'), html);
   console.log(`✓ ${path.relative(process.cwd(), path.join(OUT, 'index.html'))} — ${Math.round(html.length / 1024)}KB, ${pending.size} ảnh, ${visible.length} phần, ${M.popups.length} popup`);
@@ -603,6 +710,12 @@ function popup(p) {
       }
     }
     srvOut.close();
+    if (TPX) {
+      const dm = path.join(WORK, 'compare', 'desktop-moi.png'); const meta = await sharp(dm).metadata();
+      await sharp(dm).extract({ left: Math.max(0, Math.round((meta.width - 1200) / 2)), top: 0, width: Math.min(1200, meta.width), height: Math.min(630, meta.height) })
+        .resize(1200, 630, { fit: 'cover' }).jpeg({ quality: 86 }).toFile(path.join(OUT, 'og-cover.jpg'));
+      NOTE.push('og-cover.jpg cắt từ đầu trang khổ máy tính — mở xem có đủ mặt + tên không.');
+    }
     for (const t of ['mobile', 'desktop']) for (const k of ['goc', 'moi']) fs.rmSync(path.join(WORK, 'compare', `${t}-${k}.png`), { force: true });
   }
   await browser.close(); srv.close();

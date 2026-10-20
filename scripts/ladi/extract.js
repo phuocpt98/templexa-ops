@@ -9,6 +9,8 @@ module.exports = function extractInPage() {
   document.body.classList.remove('lazyload');
   var lz = document.getElementById('style_lazyload'); if (lz) lz.remove();
   document.querySelectorAll('.ladi-lazyload').forEach(function (e) { e.classList.remove('ladi-lazyload'); });
+  // tắt mọi hiệu ứng để đo trạng thái tĩnh của thiết kế (xoay, phóng… không bị lẫn khung hình đang chạy)
+  var stop = document.createElement('style'); stop.textContent = '*{animation:none!important;transition:none!important}'; document.head.appendChild(stop);
   // LadiPage giấu phần tử chờ hiệu ứng (opacity 0 !important) → bỏ để đo độ mờ thật của thiết kế
   document.querySelectorAll('.ladi-animation-hidden').forEach(function (e) { e.classList.remove('ladi-animation-hidden'); });
 
@@ -41,7 +43,7 @@ module.exports = function extractInPage() {
     return o;
   }
   var TXT = ['font-family', 'font-size', 'font-weight', 'font-style', 'color', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'text-shadow', 'text-decoration-line', 'background-image', '-webkit-background-clip', '-webkit-text-stroke-width', '-webkit-text-stroke-color'];
-  var BOX = ['background-color', 'background-image', 'background-size', 'background-position', 'background-repeat', 'background-attachment', 'border-top-width', 'border-top-style', 'border-top-color', 'border-right-width', 'border-bottom-width', 'border-left-width', 'border-radius', 'box-shadow', 'opacity', 'filter', 'mix-blend-mode', '-webkit-mask-image', '-webkit-mask-size', '-webkit-mask-position', 'transform'];
+  var BOX = ['background-color', 'background-image', 'background-size', 'background-position', 'background-repeat', 'background-attachment', 'border-top-width', 'border-top-style', 'border-top-color', 'border-right-width', 'border-bottom-width', 'border-left-width', 'border-right-style', 'border-bottom-style', 'border-left-style', 'border-right-color', 'border-bottom-color', 'border-left-color', 'border-radius', 'box-shadow', 'opacity', 'filter', 'mix-blend-mode', '-webkit-mask-image', '-webkit-mask-size', '-webkit-mask-position', 'transform'];
 
   function node(el) {
     var s = getComputedStyle(el), inner = el.firstElementChild;
@@ -50,8 +52,9 @@ module.exports = function extractInPage() {
       id: el.id, type: type,
       cls: [].slice.call(el.classList).filter(function (c) { return !/^ladi-/.test(c); }).join(' '),
       pos: [s.left, s.top, s.width, s.height], z: s.zIndex, disp: s.display, position: s.position,
-      fix: s.position === 'fixed' ? [s.left, s.right, s.top, s.bottom] : null,
-      eop: s.opacity, anim: anim[el.id] || null, ev: ev[el.id] || null
+      fix: s.position === 'fixed' ? [s.left, s.right, s.top, s.bottom, s.transform] : null,
+      eop: s.opacity, anim: anim[el.id] || null, ev: ev[el.id] || null,
+      tf: s.position !== 'fixed' && s.transform !== 'none' ? s.transform : null
     };
     if (type === 'ladi-group' || type === 'ladi-popup') {
       o.kids = [].slice.call(inner.children).filter(function (c) { return c.classList.contains('ladi-element'); }).map(node);
@@ -68,7 +71,7 @@ module.exports = function extractInPage() {
     } else if (type === 'ladi-image') {
       o.st = pick(inner, BOX);
       var ib = inner.querySelector('.ladi-image-background'), is = getComputedStyle(ib);
-      o.img = [is.backgroundImage, is.left, is.top, is.width, is.height];
+      o.img = [is.backgroundImage, is.left, is.top, is.width, is.height, is.backgroundSize, is.backgroundPosition];
     } else if (type === 'ladi-line') {
       var lc = inner.querySelector('.ladi-line-container'), er = el.getBoundingClientRect(), lr = lc.getBoundingClientRect();
       o.line = { box: [lr.left - er.left, lr.top - er.top, lr.width, lr.height],
@@ -102,6 +105,11 @@ module.exports = function extractInPage() {
       });
     } else {
       // bỏ script làm rối / script LadiPage (bảo vệ bản quyền, tracking) — giữ phần còn lại để phân loại
+      // thuộc tính của khung bao (widget dùng class / data-* trên khung để định kiểu)
+      o.attrs = {};
+      var vars = [el, inner].map(function (x) { return x ? (x.getAttribute('style') || '').split(';').filter(function (d) { return /^\s*--/.test(d); }).join(';') : ''; }).filter(Boolean).join(';');
+      if (vars) o.vars = vars;   // biến CSS widget ghi trên khung (--cd-num-fs…)
+      [el, inner].forEach(function (x) { if (x) [].forEach.call(x.attributes, function (a) { if (!/^(id|style)$/.test(a.name) && !(a.name === 'class' && /^ladi-/.test(a.value))) o.attrs[a.name] = (o.attrs[a.name] ? o.attrs[a.name] + ' ' : '') + a.value.replace(/\bladi-[\w-]+/g, '').trim(); }); });
       o.raw = inner ? inner.innerHTML.replace(/<script[\s\S]*?<\/script>/g, function (m) { return /_0x|LadiPage|ladi_/.test(m) ? '' : m; }) : '';
       if (o.raw && o.raw.length > 200000) o.raw = o.raw.slice(0, 200000);
     }
@@ -120,8 +128,9 @@ module.exports = function extractInPage() {
   });
   // Popup: hiện tạm để đo, rồi ẩn lại
   document.querySelectorAll('#SECTION_POPUP .ladi-container > .ladi-element').forEach(function (p) {
+    var wasOpen = getComputedStyle(p).display !== 'none';
     var old = p.style.display; p.style.display = 'block';
-    var n = node(p); var s = getComputedStyle(p);
+    var n = node(p); var s = getComputedStyle(p); n.open = wasOpen;
     n.box = [s.width, s.height, s.borderRadius];
     out.popups.push(n); p.style.display = old;
   });
@@ -140,6 +149,20 @@ module.exports = function extractInPage() {
     var src = a.getAttribute('src') || (a.querySelector('source') && a.querySelector('source').getAttribute('src'));
     if (src) out.audio.push(src);
   });
+  var vendor = '';
+  for (var k2 = 0; k2 < document.styleSheets.length; k2++) {
+    var sh = document.styleSheets[k2], own = sh.ownerNode, txt = '';
+    try { txt = [].map.call(sh.cssRules, function (r) { return r.cssText; }).join('\n'); } catch (e) { continue; }
+    var href = sh.href || '';
+    if (href) { if (!/127\.0\.0\.1/.test(href) || /fonts\.css|StyleWedding\.css|MessageBoxFunction\.css/i.test(href)) continue; }
+    else {
+      if (own && (own.id || '').indexOf('style_') === 0) continue;                      // CSS của LadiPage
+      if (own && own.closest && own.closest('.ladi-html-code')) continue;               // đã nằm trong khối HTML
+      if ((txt.match(/\.ladi-|#(SECTION|HEADLINE|PARAGRAPH|IMAGE|BOX|GROUP|BUTTON)\d/g) || []).length > 10) continue;
+    }
+    vendor += '/* ' + (href ? href.split('/').pop() : 'style chèn lúc chạy') + ' */\n' + txt.replace(/@font-face[^}]*}/g, '') + '\n';
+  }
+  out.vendorCss = vendor;
   out.title = document.title;
   var vw = document.documentElement.innerHTML.match(/var e = (\d+); var f = (\d+)/);
   out.dw = vw ? +vw[1] : 960; out.mw = vw ? +vw[2] : 420;
