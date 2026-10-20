@@ -5,7 +5,7 @@
  *     <id-mau>    tên file kich-ban/<id-mau>.json (vd gen-269-dusty-rose)
  *     --hd        vẽ ở 2× rồi thu về 1080×1920 (nét hơn, quay lâu gấp ~3)
  *     --giay N    chỉ quay N giây đầu (thử nhanh)
- *     --fps N     số khung/giây (mặc định 24)
+ *     --fps N     số khung/giây (mặc định 30)
  *     --tai-font  chỉ tải font Google của thiệp vào font-cache/ rồi thoát (chạy ở máy CÓ mạng, commit font-cache/)
  *
  * Font: Google Fonts luôn đọc từ font-cache/ (lưu trong git), không ra mạng — máy Muse không vào được
@@ -39,7 +39,7 @@ const FONT_DIR = path.join(FOLDER, 'font-cache');
 if (!ID) { console.error('Dùng: node quay.js <id-mau> [--hd] [--giay N]'); process.exit(1); }
 const CFG = JSON.parse(fs.readFileSync(path.join(FOLDER, 'kich-ban', ID + '.json'), 'utf8'));
 
-const FPS = opt('--fps') || 24, DT = 1000 / FPS;
+const FPS = opt('--fps') || 30, DT = 1000 / FPS;
 const PORT = 8791;
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',

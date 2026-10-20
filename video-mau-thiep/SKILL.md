@@ -34,7 +34,7 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 
 ## Thông số chuẩn
 
-- Video: 1080×1920, 24 khung/giây (đổi bằng `--fps 30`), mp4 (H.264 crf 17 + AAC), 25–30 giây. Bản đăng luôn quay `--hd`.
+- Video: 1080×1920, 30 khung/giây (đổi bằng `--fps 24` nếu cần), mp4 (H.264 crf 17 + AAC), 25–30 giây. Bản đăng luôn quay `--hd`.
 - Điện thoại trên sân khấu: nghiêng nhẹ ~4°, có đổ bóng, bo góc.
 - Màn kết: thiệp cuộn về phần mở đầu, chữ TEMPLEXA + templexa.vn + câu giới thiệu hiện **đè lên hình trong 2 giây** (không chuyển sang nền tối).
 - Dấu ấn **templexa.vn hiện đúng 1 chỗ** trên nền sân khấu; vị trí chọn theo từng nền (góc trên-trái / trên-phải / dưới-trái / dưới-phải / giữa-dưới), đặt ở `"viTriWeb"` trong `kich-ban/<id>.json`.
@@ -72,8 +72,8 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 
 - **Quay theo đồng hồ ảo, không ghi màn hình** (từ 20/10/2026 — bản ghi màn hình cũ bị mờ và giật):
   `quay.js` đóng băng setTimeout/setInterval/requestAnimationFrame/Date/animation CSS trong mọi khung,
-  mỗi khung đẩy đúng 1/24 giây rồi chụp 1 ảnh. Cuộn tính theo công thức (nhanh dần–chậm dần), nên dù
-  máy chậm, video vẫn đủ 24 khung đều nhau. KHÔNG dùng lại screencast + minterpolate (bồi khung làm nhoè chữ).
+  mỗi khung đẩy đúng 1/30 giây rồi chụp 1 ảnh. Cuộn tính theo công thức (nhanh dần–chậm dần), nên dù
+  máy chậm, video vẫn đủ 30 khung đều nhau. KHÔNG dùng lại screencast + minterpolate (bồi khung làm nhoè chữ).
 - `--hd` vẽ trang ở 2× rồi thu nhỏ bằng lanczos: viền ảnh/chữ trên điện thoại nghiêng 4° hết răng cưa.
 - Đếm ngược chạy theo ngày thật lúc quay — mẫu có ngày đã qua sẽ hiện 00, chấp nhận (chủ shop chốt 20/10, không giả ngày).
 - **Đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
