@@ -1,12 +1,22 @@
 /**
  * quay.js — Quay video giới thiệu mẫu thiệp theo kịch bản.
  *
- *   node video-mau-thiep/quay.js <id-mau> [--hd] [--giay N] [--fps N] [--tai-font]
+ *   node video-mau-thiep/quay.js <id-mau> [--hd [N]] [--giay N] [--fps N] [--doan N] [--lam-lai] [--tai-font]
  *     <id-mau>    tên file kich-ban/<id-mau>.json (vd gen-269-dusty-rose)
- *     --hd        vẽ ở 2× rồi thu về 1080×1920 (nét hơn, quay lâu gấp ~3)
+ *     --hd [N]    vẽ ở N× (mặc định 2; máy ít RAM dùng 1.5) rồi thu về 1080×1920 — nét hơn
  *     --giay N    chỉ quay N giây đầu (thử nhanh)
  *     --fps N     số khung/giây (mặc định 30)
+ *     --doan N    mỗi đoạn quay N giây trong 1 Chrome mới (mặc định: "doan" trong kịch bản, không có thì 5).
+ *                 Đổi được giữa chừng — lần chạy tiếp dùng độ dài mới, phần đã quay giữ nguyên.
+ *     --lam-lai   bỏ tiến độ cũ, quay lại từ đầu
  *     --tai-font  chỉ tải font Google của thiệp này vào font-cache/ rồi thoát (cả catalog: tai-font.js)
+ *
+ * QUAY THEO ĐOẠN + CHẠY TIẾP ĐƯỢC: video chia đoạn N giây, mỗi đoạn mở Chrome mới, quay xong đóng ngay
+ * (RAM luôn thấp). Ảnh từng khung + tiến độ lưu ở video/.job-<id>/ (state.json, log.txt, frames/).
+ * Máy khởi động lại / Chrome sập → chạy LẠI ĐÚNG LỆNH CŨ là quay tiếp từ đoạn dở.
+ * Đoạn sau mở thiệp rồi TUA LẠI kịch bản không chụp (bấm, cuộn, hiệu ứng) tới đúng khung ngắt —
+ * đúng toạ độ cuộn và trạng thái. Hoa rơi/ngẫu nhiên và giờ đồng hồ được cố định nên mối nối liền mạch.
+ * Đủ mọi đoạn mới ghép video + nhạc 1 lần (nhạc bắt đầu đúng lúc bấm có "nhac": true).
  *
  * Font: Google Fonts luôn đọc từ font-cache/ (lưu trong git), không ra mạng — máy Muse không vào được
  * fonts.googleapis.com. Thiếu font → script báo và DỪNG, không quay ra video sai chữ.
@@ -19,7 +29,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const { execFileSync } = require('child_process');
 
 const FOLDER = __dirname;
@@ -30,15 +39,19 @@ if (!TEMPLEXA) { console.error('LOI: không thấy thư mục Templexa/'); proce
 const puppeteer = require(path.join(TEMPLEXA, 'node_modules/puppeteer'));
 
 const args = process.argv.slice(2);
-const ID = args.find((a) => !a.startsWith('--') && !/^\d+$/.test(a));
+const ID = args.find((a) => !a.startsWith('--') && !/^[\d.]+$/.test(a));
 const opt = (k) => (args.includes(k) ? +args[args.indexOf(k) + 1] : 0);
-const HD = args.includes('--hd');
+const HD = args.includes('--hd') ? (opt('--hd') || 2) : 1;
 const GIAY = opt('--giay');
 const TAI_FONT = args.includes('--tai-font');
+const LAM_LAI = args.includes('--lam-lai');
+
 const dbg = (...m) => process.env.DEBUG && console.log('[dbg]', ...m);
 const FONT_DIR = path.join(FOLDER, 'font-cache');
-if (!ID) { console.error('Dùng: node quay.js <id-mau> [--hd] [--giay N]'); process.exit(1); }
+if (!ID) { console.error('Dùng: node quay.js <id-mau> [--hd [N]] [--giay N] [--doan N] [--lam-lai]'); process.exit(1); }
 const CFG = JSON.parse(fs.readFileSync(path.join(FOLDER, 'kich-ban', ID + '.json'), 'utf8'));
+// Độ dài 1 đoạn (giây): --doan N > "doan" trong kịch bản > 5. Đổi lúc nào cũng được, kể cả khi đang quay dở.
+const DOAN = opt('--doan') || CFG.doan || 5;
 
 const FPS = opt('--fps') || 30, DT = 1000 / FPS;
 const PORT = 8791;
@@ -73,10 +86,15 @@ function startServer() {
 }
 
 // Đồng hồ ảo — chạy trong MỌI khung (sân khấu + iframe thiệp) trước script của trang.
-const VIRTUAL_TIME = `(() => {
+// base: "giờ thật" cố định cho cả lượt quay (mọi đoạn giống nhau → đếm ngược không nhảy ở mối nối).
+// Math.random cố định hạt giống → hoa rơi/ngẫu nhiên lặp lại y hệt khi tua lại ở đoạn sau.
+const virtualTime = (base) => `(() => {
   if (window.__vt) return;
-  let now = 0, tid = 1, rid = 1, rafs = [];
-  const timers = new Map(), base = Date.now(), ODate = Date, RT = window.setTimeout.bind(window);
+  let now = 0, tid = 1, rid = 1, rafs = [], seed = 20261020;
+  const timers = new Map(), base = ${base}, ODate = Date, RT = window.setTimeout.bind(window);
+  const RAF = window.requestAnimationFrame.bind(window);
+  Math.random = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   function VDate(...a) {
     if (!(this instanceof VDate)) return new ODate(base + now).toString();
     return a.length ? new ODate(...a) : new ODate(base + now);
@@ -92,6 +110,7 @@ const VIRTUAL_TIME = `(() => {
   const start = new WeakMap();
   window.__vt = {
     sleep: (ms) => new Promise((r) => RT(r, ms)), // chờ theo đồng hồ THẬT (dùng cho script quay)
+    paint: () => new Promise((r) => { RAF(() => r()); RT(r, 120); }), // đợi trình duyệt vẽ 1 lần (lúc tua không chụp)
     advance(ms) {
       const target = now + ms;
       for (let g = 0; g < 5000; g++) {
@@ -114,25 +133,50 @@ const VIRTUAL_TIME = `(() => {
   };
 })();`;
 
-(async () => {
-  const srv = await startServer();
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'quay-'));
-  let browser;
+// ===== Số khung của kịch bản — tính trước, không cần mở trình duyệt
+function framePlan() {
+  let n = 0;
+  for (const st of CFG.timeline) {
+    if (st.sleep) n += Math.ceil(st.sleep / DT - 1e-9);
+    else if (st.scroll || st.scrollText) n += Math.round(st.ms / DT);
+    else if (st.top) n += Math.round(st.top / DT);
+  }
+  return GIAY ? Math.min(n, Math.round(GIAY * FPS)) : n;
+}
+
+// ===== Tiến độ (chạy tiếp được sau khi máy khởi động lại)
+const JOB = path.join(FOLDER, 'video', '.job-' + ID);
+const FRAMES = path.join(JOB, 'frames');
+const STATE = path.join(JOB, 'state.json');
+const log = (m) => {
+  const line = `[${new Date().toISOString().replace('T', ' ').slice(0, 19)}] ${m}`;
+  console.log(line); fs.appendFileSync(path.join(JOB, 'log.txt'), line + '\n');
+};
+const saveState = (st) => fs.writeFileSync(STATE, JSON.stringify(st, null, 2));
+const KEY = require('crypto').createHash('sha1').update(JSON.stringify({ CFG, FPS, HD, GIAY, v: 2 })).digest('hex').slice(0, 12);
+const frameFile = (i) => path.join(FRAMES, `f${String(i).padStart(5, '0')}.jpg`);
+
+const isFont = (u) => u.startsWith('https://fonts.googleapis.com/') || u.startsWith('https://fonts.gstatic.com/');
+const fontFile = (u) => path.join(FONT_DIR, require('crypto').createHash('sha1').update(u).digest('hex').slice(0, 16)
+  + (u.includes('fonts.googleapis.com') ? '.css' : '.woff2'));
+
+// ===== Một lượt Chrome: mở sân khấu, (khởi động), tua tới khung `from`, chụp tới khung `to`, đóng Chrome.
+async function runSegment(state, from, to) {
+  const browser = await puppeteer.launch({
+    headless: true,
+    userDataDir: path.join(JOB, 'profile'), // cache ảnh/font giữ lại giữa các đoạn và sau khi máy khởi động lại
+    args: ['--no-sandbox', '--no-proxy-server', '--autoplay-policy=no-user-gesture-required', '--hide-scrollbars', '--mute-audio',
+      // tiết kiệm RAM trên máy ảo: không dùng /dev/shm, không GPU, gộp tiến trình, tắt dịch vụ nền
+      '--disable-dev-shm-usage', '--disable-gpu', '--renderer-process-limit=1', '--disable-site-isolation-trials',
+      '--disable-extensions', '--disable-background-networking', '--disable-component-update', '--disable-sync',
+      '--disable-default-apps', '--no-first-run', '--disable-features=Translate,MediaRouter,OptimizationHints'],
+  });
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--no-proxy-server', '--autoplay-policy=no-user-gesture-required', '--hide-scrollbars', '--mute-audio'],
-    });
     const page = await browser.newPage();
-    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: HD ? 2 : 1 });
-    await page.evaluateOnNewDocument(VIRTUAL_TIME);
+    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: HD });
+    await page.evaluateOnNewDocument(virtualTime(state.base));
 
     // Chỉ cho nạp file local. Google Fonts trả từ font-cache/ (--tai-font: tải thật rồi lưu vào đó).
-    // Mọi đường ra mạng khác bị chặn để không chờ mạng.
-    fs.mkdirSync(FONT_DIR, { recursive: true });
-    const isFont = (u) => u.startsWith('https://fonts.googleapis.com/') || u.startsWith('https://fonts.gstatic.com/');
-    const fontFile = (u) => path.join(FONT_DIR, require('crypto').createHash('sha1').update(u).digest('hex').slice(0, 16)
-      + (u.includes('fonts.googleapis.com') ? '.css' : '.woff2'));
     const missing = new Set();
     await page.setRequestInterception(true);
     page.on('request', (r) => {
@@ -180,7 +224,7 @@ const VIRTUAL_TIME = `(() => {
       for (let i = 0; i < 60; i++) {
         const f = page.frames().find((fr) => fr.url().includes(thiepMark));
         if (f && await f.evaluate((s) => !!document.querySelector(s), CFG.cho || 'body').catch(() => false)) {
-          dbg('frame ok'); await f.evaluate(() => document.fonts.ready); dbg('fonts ready');
+          await f.evaluate(() => document.fonts.ready);
           for (let k = 0; k < 30; k++) await advance(DT); // 1 giây ảo cho trang ổn định
           return f;
         }
@@ -188,37 +232,46 @@ const VIRTUAL_TIME = `(() => {
       }
       throw new Error('Không thấy iframe thiệp ' + thiepMark);
     };
+    const waitImages = (f) => f.evaluate(() => Promise.race([ // ảnh lazy chưa nạp thì decode() chờ mãi — giới hạn 8 giây
+      Promise.all([...document.images].map((im) => im.decode().catch(() => {}))), window.__vt.sleep(8000)])).catch(() => {});
 
-    // ===== Vòng khởi động: mở thiệp, cuộn hết 1 lượt để ảnh/font nạp vào cache, rồi tải lại.
-    console.log('Vong khoi dong...');
     let frame = await openStage();
-    const firstClick = CFG.timeline.find((s) => s.click);
-    if (firstClick) await frame.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, firstClick.click).catch(() => {});
-    for (let k = 0; k < 60; k++) await advance(DT);
-    const H = await frame.evaluate(() => document.documentElement.scrollHeight);
-    for (let y = 0; y <= H; y += 400) { await frame.evaluate((v) => window.scrollTo(0, v), y); await advance(DT); }
-    // ảnh lazy chưa nạp thì decode() chờ mãi — giới hạn 8 giây
-    await frame.evaluate(() => Promise.race([Promise.all([...document.images].map((im) => im.decode().catch(() => {}))), window.__vt.sleep(8000)])).catch(() => {});
-    if (TAI_FONT) { await new Promise((r) => setTimeout(r, 1500)); console.log(`Da luu ${saved} file font moi vao font-cache/ — nho commit.`); return; }
-    if (missing.size) {
-      throw new Error(`Thiếu ${missing.size} file font trong font-cache/ (vd ${[...missing][0]}).\n`
-        + `Nhờ chủ shop chạy trên máy có mạng: node video-mau-thiep/quay.js ${ID} --tai-font  rồi commit font-cache/.`);
+    // Vòng khởi động (1 lần cho cả lượt quay — cache nằm trong profile/): mở thiệp, cuộn hết để ảnh/font nạp.
+    if (!state.warm || TAI_FONT) {
+      log('Vong khoi dong: nap san anh/font...');
+      const firstClick = CFG.timeline.find((s) => s.click);
+      if (firstClick) await frame.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, firstClick.click).catch(() => {});
+      for (let k = 0; k < 60; k++) await advance(DT);
+      const H = await frame.evaluate(() => document.documentElement.scrollHeight);
+      for (let y = 0; y <= H; y += 400) { await frame.evaluate((v) => window.scrollTo(0, v), y); await advance(DT); }
+      await waitImages(frame);
+      if (TAI_FONT) { await new Promise((r) => setTimeout(r, 1500)); console.log(`Da luu ${saved} file font moi vao font-cache/ — nho commit.`); return; }
+      if (missing.size) {
+        throw Object.assign(new Error(`Thiếu ${missing.size} file font trong font-cache/ (vd ${[...missing][0]}).\n`
+          + `Nhờ chủ shop chạy trên máy có mạng: node video-mau-thiep/tai-font.js  rồi commit font-cache/.`), { fatal: true });
+      }
+      state.warm = true; saveState(state);
+      frame = await openStage();
     }
-    frame = await openStage();
-    console.log('Khoi dong xong — quay that');
 
-    // ===== Quay từng khung =====
-    const fdir = path.join(tmp, 'frames');
-    fs.mkdirSync(fdir);
-    let n = 0, nhacMs = null;
-    const maxFrames = GIAY ? GIAY * FPS : Infinity;
-    const shot = async () => {
-      if (n >= maxFrames) return;
-      await page.screenshot({ path: path.join(fdir, `f${String(n).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 95 });
+    // ===== Chạy kịch bản: khung < from → TUA (không chụp, chỉ đợi trình duyệt vẽ để hiệu ứng cuộn kích hoạt đúng);
+    // from ≤ khung < to → CHỤP ra frames/; tới `to` thì dừng.
+    const cdp = await page.createCDPSession();
+    const STOP = Symbol('stop');
+    let n = 0, nhacMs = null, imagesReady = from === 0;
+    const t0 = Date.now();
+    const step = async () => {
+      if (n >= to) throw STOP;
+      await advance(DT);
+      if (n < from) await frame.evaluate(() => window.__vt.paint()).catch(() => {});
+      else {
+        if (!imagesReady) { await waitImages(frame); imagesReady = true; }
+        const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 90, optimizeForSpeed: true,
+          clip: { x: 0, y: 0, width: 1080, height: 1920, scale: HD } }); // phải ghi scale thì Chrome mới chụp đúng độ phân giải --hd
+        fs.writeFileSync(frameFile(n), Buffer.from(data, 'base64'));
+      }
       n++;
-      if (n % (FPS * 3) === 0) console.log(`  ${n / FPS}s`);
     };
-    const hold = async (ms) => { for (let t = 0; t < ms; t += DT) { await advance(DT); await shot(); } };
     const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     const scrollTo = async (findSrc, ms) => {
       const [y0, y1] = await frame.evaluate((src) => {
@@ -230,41 +283,80 @@ const VIRTUAL_TIME = `(() => {
       }, findSrc);
       const steps = Math.round(ms / DT);
       for (let i = 1; i <= steps; i++) {
+        if (n >= to) throw STOP;
         await frame.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), y0 + (y1 - y0) * ease(i / steps));
-        await advance(DT); await shot();
+        await step();
       }
     };
-
-    for (const st of CFG.timeline) {
-      if (n >= maxFrames) break;
-      if (st.sleep) await hold(st.sleep);
-      else if (st.click) {
-        await frame.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, st.click).catch(() => {});
-        if (st.nhac && nhacMs === null) nhacMs = Math.round(n * DT);
-      } else if (st.scroll) await scrollTo(`() => document.querySelector(${JSON.stringify(st.scroll)})`, st.ms);
-      else if (st.scrollText) await scrollTo(`() => [...document.querySelectorAll(${JSON.stringify(st.scrollText[0])})].find((h) => h.textContent.includes(${JSON.stringify(st.scrollText[1])}))`, st.ms);
-      else if (st.top) await scrollTo(null, st.top);
-      else if (st.endcard) await page.evaluate(() => window.hienManKet());
-    }
-    const dur = n / FPS;
-    console.log(`Quay xong: ${n} khung = ${dur.toFixed(1)} giây`);
-
-    // ===== Dựng video: đúng FPS như đã chụp, thêm nhạc của thiệp, nhỏ dần 2,5 giây cuối
-    fs.mkdirSync(path.join(FOLDER, 'video'), { recursive: true });
-    const out = path.join(FOLDER, 'video', ID + '.mp4');
-    const delay = nhacMs || 0;
-    const ff = ['-y', '-framerate', String(FPS), '-i', path.join(fdir, 'f%05d.jpg')];
-    if (CFG.nhac) ff.push('-i', path.join(OPS_ROOT, CFG.nhac).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA));
-    ff.push('-vf', 'scale=1080:1920:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
-      '-profile:v', 'high', '-r', String(FPS), '-movflags', '+faststart');
-    if (CFG.nhac) ff.push('-af', `adelay=${delay}|${delay},volume=0.5,afade=t=out:st=${Math.max(0, dur - 2.5).toFixed(2)}:d=2.5`,
-      '-c:a', 'aac', '-b:a', '160k', '-shortest');
-    ff.push(out);
-    execFileSync('ffmpeg', ff, { stdio: 'pipe' });
-    console.log('XONG:', out);
+    try {
+      for (const st of CFG.timeline) {
+        if (st.sleep) { for (let k = Math.ceil(st.sleep / DT - 1e-9); k > 0; k--) await step(); }
+        else if (st.click) {
+          await frame.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, st.click).catch(() => {});
+          if (st.nhac && nhacMs === null) nhacMs = Math.round(n * DT);
+        } else if (st.scroll) await scrollTo(`() => document.querySelector(${JSON.stringify(st.scroll)})`, st.ms);
+        else if (st.scrollText) await scrollTo(`() => [...document.querySelectorAll(${JSON.stringify(st.scrollText[0])})].find((h) => h.textContent.includes(${JSON.stringify(st.scrollText[1])}))`, st.ms);
+        else if (st.top) await scrollTo(null, st.top);
+        else if (st.endcard) await page.evaluate(() => window.hienManKet());
+      }
+    } catch (e) { if (e !== STOP) throw e; }
+    if (nhacMs !== null) state.nhacMs = nhacMs;
+    return { ms: Math.round((Date.now() - t0) / Math.max(1, to - from)) };
   } finally {
-    if (browser) await browser.close();
+    await browser.close().catch(() => {});
+  }
+}
+
+(async () => {
+  const srv = await startServer();
+  const T_START = Date.now();
+  try {
+    fs.mkdirSync(FONT_DIR, { recursive: true });
+    if (LAM_LAI) fs.rmSync(JOB, { recursive: true, force: true });
+    fs.mkdirSync(FRAMES, { recursive: true });
+    let state = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : null;
+    if (state && state.key !== KEY) {
+      console.log('Kich ban / tuy chon da doi so voi luot quay do — quay lai tu dau.');
+      fs.rmSync(JOB, { recursive: true, force: true }); fs.mkdirSync(FRAMES, { recursive: true }); state = null;
+    }
+    const total = framePlan();
+    if (!state) { state = { key: KEY, base: Date.now(), total, done: 0, warm: false, nhacMs: null }; saveState(state); }
+    if (TAI_FONT) { await runSegment(state, 0, 0); fs.rmSync(JOB, { recursive: true, force: true }); return; }
+
+    const per = Math.round(DOAN * FPS);
+    if (state.done > 0) log(`Chay tiep: da xong ${state.done}/${total} khung (${(state.done / FPS).toFixed(1)}s)`);
+    else log(`Bat dau: ${total} khung = ${(total / FPS).toFixed(1)}s, moi doan ${DOAN}s, hd=${HD}`);
+    while (state.done < total) {
+      const from = state.done;
+      const to = total - (from + per) < per / 2 ? total : from + per; // phần thừa ngắn gộp vào đoạn cuối
+      for (let lan = 1; ; lan++) {
+        try {
+          const r = await runSegment(state, from, to);
+          state.done = to; saveState(state);
+          log(`Doan ${(from / FPS).toFixed(1)}–${(to / FPS).toFixed(1)}s xong (${r.ms} ms/khung) — ${state.done}/${total}`);
+          break;
+        } catch (e) {
+          log(`Doan ${(from / FPS).toFixed(1)}s loi lan ${lan}: ${e.message}`);
+          if (e.fatal || lan >= 3) throw new Error(e.fatal ? e.message : 'Doan loi 3 lan — chay lai dung lenh cu de quay tiep tu doan nay.');
+        }
+      }
+    }
+
+    // ===== Đủ mọi đoạn → ghép video + nhạc 1 lần (Chrome đã đóng, chỉ còn ffmpeg; -threads 2 cho nhẹ RAM)
+    const dur = total / FPS;
+    const out = path.join(FOLDER, 'video', ID + '.mp4');
+    const delay = state.nhacMs || 0;
+    const ff = ['-y', '-framerate', String(FPS), '-i', path.join(FRAMES, 'f%05d.jpg')];
+    if (CFG.nhac) ff.push('-i', path.join(OPS_ROOT, CFG.nhac).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA),
+      '-af', `adelay=${delay}|${delay},volume=0.5,afade=t=out:st=${Math.max(0, dur - 2.5).toFixed(2)}:d=2.5`,
+      '-c:a', 'aac', '-b:a', '160k', '-shortest');
+    ff.push('-vf', 'scale=1080:1920:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'medium', '-crf', '17',
+      '-profile:v', 'high', '-threads', '2', '-r', String(FPS), '-movflags', '+faststart', out);
+    log('Ghep video + nhac...');
+    execFileSync('ffmpeg', ff, { stdio: 'pipe' });
+    log(`XONG: ${out} (${dur.toFixed(1)}s, tong ${Math.round((Date.now() - T_START) / 1000)}s lan chay nay)`);
+    fs.rmSync(JOB, { recursive: true, force: true }); // xong hẳn mới xoá ảnh tạm + tiến độ
+  } finally {
     srv.close();
-    fs.rmSync(tmp, { recursive: true, force: true });
   }
 })().catch((e) => { console.error('LOI:', e.message); process.exit(1); });

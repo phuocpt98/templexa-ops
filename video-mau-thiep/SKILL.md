@@ -24,8 +24,15 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
    timeline từng đoạn (giây nào bấm gì, đợi hiệu ứng nào, cuộn đến mục nào, dừng bao lâu),
    câu giới thiệu mẫu, nội dung màn kết, thời lượng dự kiến (~25–30 giây).
 3. **Quay**: `node video-mau-thiep/quay.js <id-mau> --giay 8` để thử nhanh, xem vài khung; ổn thì
-   `node video-mau-thiep/quay.js <id-mau> --hd` (bản đăng, ~2 phút). Script mở `san-khau.html` (1080×1920),
+   `node video-mau-thiep/quay.js <id-mau> --hd` (bản đăng). Script mở `san-khau.html` (1080×1920),
    nạp nền + thiệp, chạy timeline, chụp từng khung, trộn nhạc, xuất `video/<id-mau>.mp4`.
+   - **Quay theo đoạn, chạy tiếp được**: video chia đoạn (mặc định 5 giây, `"doan"` trong kịch bản hoặc `--doan 8`),
+     mỗi đoạn mở 1 Chrome mới rồi đóng — RAM luôn thấp. Tiến độ + ảnh từng khung ở `video/.job-<id>/`
+     (`log.txt` ghi từng đoạn xong lúc nào, bao nhiêu ms/khung). **Máy khởi động lại / Chrome sập → chạy LẠI ĐÚNG
+     LỆNH CŨ** là quay tiếp từ đoạn dở; đủ đoạn mới ghép video + nhạc. Đổi `--doan` giữa chừng được (phần đã quay giữ nguyên).
+     Muốn bỏ tiến độ, quay lại từ đầu: thêm `--lam-lai`. Đổi kịch bản/`--hd`/`--fps` thì tự quay lại từ đầu.
+   - Chọn độ dài đoạn theo lịch khởi động lại của máy: đoạn phải xong trước khi máy bị khởi động lại
+     (xem `ms/khung` trong log: 5 giây = 150 khung × ms/khung + ~15 giây mở Chrome và tua lại).
    - Báo **thiếu font** (mẫu mới thêm sau lần tải font gần nhất) → nhắn chủ shop chạy `node video-mau-thiep/tai-font.js`
      trên máy có mạng và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
    - Trước khi gửi duyệt: trích 6–8 khung (`ffmpeg -ss <giây> -i video/<id>.mp4 -frames:v 1 x.png`) mở xem —
@@ -75,7 +82,13 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
   `quay.js` đóng băng setTimeout/setInterval/requestAnimationFrame/Date/animation CSS trong mọi khung,
   mỗi khung đẩy đúng 1/30 giây rồi chụp 1 ảnh. Cuộn tính theo công thức (nhanh dần–chậm dần), nên dù
   máy chậm, video vẫn đủ 30 khung đều nhau. KHÔNG dùng lại screencast + minterpolate (bồi khung làm nhoè chữ).
-- `--hd` vẽ trang ở 2× rồi thu nhỏ bằng lanczos: viền ảnh/chữ trên điện thoại nghiêng 4° hết răng cưa.
+- `--hd` vẽ trang ở 2× (2160×3840) rồi thu nhỏ bằng lanczos: viền ảnh/chữ trên điện thoại nghiêng 4° hết răng cưa.
+  Chụp bằng CDP `Page.captureScreenshot` PHẢI có `clip.scale = HD`, không thì Chrome chỉ trả 1080×1920 (đã dính 20/10).
+- **Mối nối giữa các đoạn**: đoạn sau mở thiệp rồi tua lại kịch bản không chụp tới đúng khung ngắt. `quay.js` cố định
+  `Math.random` và mốc giờ (lưu trong `state.json`) cho mọi đoạn → hoa rơi, đếm ngược, vị trí cuộn khớp y hệt; không sửa thiệp.
+  Còn lệch nhỏ ở thứ chạy theo giờ thật của trình duyệt (vd đĩa nhạc #269 quay theo sự kiện nhạc phát → nhảy góc nhẹ ở mối nối) — chấp nhận.
+- **RAM máy ảo** (Muse 20/10: 8GB chung, trống ~0,9GB, `/tmp` là ổ RAM 512MB): ảnh khung ghi ra `video/.job-<id>/` trên
+  ổ đĩa, KHÔNG dùng `/tmp`; Chrome đóng hẳn rồi mới chạy ffmpeg (`-threads 2`) để hai thứ không chiếm RAM cùng lúc.
 - Đếm ngược chạy theo ngày thật lúc quay — mẫu có ngày đã qua sẽ hiện 00, chấp nhận (chủ shop chốt 20/10, không giả ngày).
 - **Đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
   vd gen_269: `#collage` là cảnh hero ở ĐẦU trang. Đo bằng `getBoundingClientRect().top + scrollY` sau khi mở thiệp.
