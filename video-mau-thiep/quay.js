@@ -1,18 +1,19 @@
 /**
  * quay.js — Quay video giới thiệu mẫu thiệp theo kịch bản.
  *
- *   node video-mau-thiep/quay.js <id-mau> [--hd] [--giay N] [--tai-font]
+ *   node video-mau-thiep/quay.js <id-mau> [--hd] [--giay N] [--fps N] [--tai-font]
  *     <id-mau>    tên file kich-ban/<id-mau>.json (vd gen-269-dusty-rose)
  *     --hd        vẽ ở 2× rồi thu về 1080×1920 (nét hơn, quay lâu gấp ~3)
  *     --giay N    chỉ quay N giây đầu (thử nhanh)
+ *     --fps N     số khung/giây (mặc định 24)
  *     --tai-font  chỉ tải font Google của thiệp vào font-cache/ rồi thoát (chạy ở máy CÓ mạng, commit font-cache/)
  *
  * Font: Google Fonts luôn đọc từ font-cache/ (lưu trong git), không ra mạng — máy Muse không vào được
  * fonts.googleapis.com. Thiếu font → script báo và DỪNG, không quay ra video sai chữ.
  *
  * Cách quay: KHÔNG ghi màn hình theo thời gian thật. Script đóng băng đồng hồ của trang
- * (setTimeout, requestAnimationFrame, Date, animation CSS) rồi tự đẩy thời gian từng 1/30 giây,
- * chụp đúng 1 ảnh mỗi khung. Máy chậm hay nhanh thì video vẫn đủ 30 khung/giây, cuộn và hiệu ứng
+ * (setTimeout, requestAnimationFrame, Date, animation CSS) rồi tự đẩy thời gian từng 1/FPS giây,
+ * chụp đúng 1 ảnh mỗi khung. Máy chậm hay nhanh thì video vẫn đủ khung đều nhau, cuộn và hiệu ứng
  * đều tăm tắp — không cần bồi khung (minterpolate) nên không nhoè.
  */
 const http = require('http');
@@ -30,14 +31,15 @@ const puppeteer = require(path.join(TEMPLEXA, 'node_modules/puppeteer'));
 
 const args = process.argv.slice(2);
 const ID = args.find((a) => !a.startsWith('--') && !/^\d+$/.test(a));
+const opt = (k) => (args.includes(k) ? +args[args.indexOf(k) + 1] : 0);
 const HD = args.includes('--hd');
-const GIAY = args.includes('--giay') ? +args[args.indexOf('--giay') + 1] : 0;
+const GIAY = opt('--giay');
 const TAI_FONT = args.includes('--tai-font');
 const FONT_DIR = path.join(FOLDER, 'font-cache');
 if (!ID) { console.error('Dùng: node quay.js <id-mau> [--hd] [--giay N]'); process.exit(1); }
 const CFG = JSON.parse(fs.readFileSync(path.join(FOLDER, 'kich-ban', ID + '.json'), 'utf8'));
 
-const FPS = 30, DT = 1000 / FPS;
+const FPS = opt('--fps') || 24, DT = 1000 / FPS;
 const PORT = 8791;
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
@@ -201,7 +203,7 @@ const VIRTUAL_TIME = `(() => {
       if (n >= maxFrames) return;
       await page.screenshot({ path: path.join(fdir, `f${String(n).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 95 });
       n++;
-      if (n % 90 === 0) console.log(`  ${n / FPS}s`);
+      if (n % (FPS * 3) === 0) console.log(`  ${n / FPS}s`);
     };
     const hold = async (ms) => { for (let t = 0; t < ms; t += DT) { await advance(DT); await shot(); } };
     const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
@@ -234,7 +236,7 @@ const VIRTUAL_TIME = `(() => {
     const dur = n / FPS;
     console.log(`Quay xong: ${n} khung = ${dur.toFixed(1)} giây`);
 
-    // ===== Dựng video: 30 khung/giây đúng như đã chụp, thêm nhạc của thiệp, nhỏ dần 2,5 giây cuối
+    // ===== Dựng video: đúng FPS như đã chụp, thêm nhạc của thiệp, nhỏ dần 2,5 giây cuối
     fs.mkdirSync(path.join(FOLDER, 'video'), { recursive: true });
     const out = path.join(FOLDER, 'video', ID + '.mp4');
     const delay = nhacMs || 0;
