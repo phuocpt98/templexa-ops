@@ -41,6 +41,7 @@ Cần sửa phần KHÔNG được sửa → dừng, ghi vào `feedback.md` củ
 - Thiệp khách **mặc định được khoe** trên catalog (`catalog.js add`) — trừ khi chủ shop bảo ẩn.
 - Trang thiệp khách luôn `noindex` (không lên Google) — script đã lo.
 - Mọi thiệp phải có dòng `templexa.vn` ở cuối, RSVP chỉ 1 nút gửi, tên dài không xuống dòng giữa tên — xem `skills/thiep/SKILL.md`.
+- Link liên hệ Templexa (icon Facebook/Messenger cuối thiệp, tin nhắn gửi khách): Page `https://www.facebook.com/templexa.vn`, Messenger `https://m.me/templexa.vn`, Zalo `https://zalo.me/0334884895`. Không dùng link cũ `facebook.com/messages/t/linh.pi.359`, `facebook.com/templexa`, `m.me/templexa` (thiếu `.vn`).
 - Báo kết quả cho user bằng: link xem thử + ảnh chụp (`shots/open.webp`) + việc còn chờ. Không dán code.
 
 ## 6. Bản đồ file
