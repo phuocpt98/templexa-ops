@@ -11,7 +11,8 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 - `nen/` — kho ảnh nền theo phong cách (gen sẵn, thêm dần khi cần style mới).
 - `kich-ban/` — mỗi mẫu 2 file viết TRƯỚC khi quay: `<id>.md` (ghi chép cho người đọc: thiệp hoạt động thế nào, bản đồ vị trí) + `<id>.json` (kịch bản máy chạy). Mẫu: `gen-269-dusty-rose.md/.json`.
 - `quay.js` — script quay tự động (puppeteer): đọc `kich-ban/<id>.json`, xuất mp4 vào `video/`. KHÔNG sửa code cho từng mẫu.
-- `font-cache/` — Google Fonts của các thiệp đã quay (lưu trong git). Lúc quay chỉ đọc từ đây, không ra mạng.
+- `font-cache/` — Google Fonts của MỌI mẫu thiệp public trong catalog (bộ chữ latin/latin-ext/vietnamese/symbols, ~9MB, lưu trong git). Lúc quay chỉ đọc từ đây, không ra mạng. Thiệp không phải sửa gì — chỉ `quay.js` trả font từ cache thay cho Google.
+- `tai-font.js` — tải lại font cho cả catalog (chạy trên máy có mạng khi có mẫu mới, rồi commit `font-cache/`).
 - `video/` — folder đích chứa video thành phẩm (đã gitignore; đăng xong có thể xoá, lịch sử nằm ở `muc-luc.md`).
 
 ## Quy trình mỗi mẫu
@@ -25,8 +26,8 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 3. **Quay**: `node video-mau-thiep/quay.js <id-mau> --giay 8` để thử nhanh, xem vài khung; ổn thì
    `node video-mau-thiep/quay.js <id-mau> --hd` (bản đăng, ~2 phút). Script mở `san-khau.html` (1080×1920),
    nạp nền + thiệp, chạy timeline, chụp từng khung, trộn nhạc, xuất `video/<id-mau>.mp4`.
-   - Báo **thiếu font** → nhắn chủ shop chạy `node video-mau-thiep/quay.js <id-mau> --tai-font` trên máy có mạng
-     và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
+   - Báo **thiếu font** (mẫu mới thêm sau lần tải font gần nhất) → nhắn chủ shop chạy `node video-mau-thiep/tai-font.js`
+     trên máy có mạng và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
    - Trước khi gửi duyệt: trích 6–8 khung (`ffmpeg -ss <giây> -i video/<id>.mp4 -frames:v 1 x.png`) mở xem —
      đúng font, đúng mục, chữ nét, màn kết đủ chữ.
 4. **Ghi mục lục**: thêm dòng vào `muc-luc.md` (ngày, mẫu, nền, video, trạng thái "chờ duyệt").

@@ -6,7 +6,7 @@
  *     --hd        vẽ ở 2× rồi thu về 1080×1920 (nét hơn, quay lâu gấp ~3)
  *     --giay N    chỉ quay N giây đầu (thử nhanh)
  *     --fps N     số khung/giây (mặc định 30)
- *     --tai-font  chỉ tải font Google của thiệp vào font-cache/ rồi thoát (chạy ở máy CÓ mạng, commit font-cache/)
+ *     --tai-font  chỉ tải font Google của thiệp này vào font-cache/ rồi thoát (cả catalog: tai-font.js)
  *
  * Font: Google Fonts luôn đọc từ font-cache/ (lưu trong git), không ra mạng — máy Muse không vào được
  * fonts.googleapis.com. Thiếu font → script báo và DỪNG, không quay ra video sai chữ.
@@ -35,6 +35,7 @@ const opt = (k) => (args.includes(k) ? +args[args.indexOf(k) + 1] : 0);
 const HD = args.includes('--hd');
 const GIAY = opt('--giay');
 const TAI_FONT = args.includes('--tai-font');
+const dbg = (...m) => process.env.DEBUG && console.log('[dbg]', ...m);
 const FONT_DIR = path.join(FOLDER, 'font-cache');
 if (!ID) { console.error('Dùng: node quay.js <id-mau> [--hd] [--giay N]'); process.exit(1); }
 const CFG = JSON.parse(fs.readFileSync(path.join(FOLDER, 'kich-ban', ID + '.json'), 'utf8'));
@@ -75,7 +76,7 @@ function startServer() {
 const VIRTUAL_TIME = `(() => {
   if (window.__vt) return;
   let now = 0, tid = 1, rid = 1, rafs = [];
-  const timers = new Map(), base = Date.now(), ODate = Date;
+  const timers = new Map(), base = Date.now(), ODate = Date, RT = window.setTimeout.bind(window);
   function VDate(...a) {
     if (!(this instanceof VDate)) return new ODate(base + now).toString();
     return a.length ? new ODate(...a) : new ODate(base + now);
@@ -90,6 +91,7 @@ const VIRTUAL_TIME = `(() => {
   window.cancelAnimationFrame = (id) => { rafs = rafs.filter((r) => r.id !== id); };
   const start = new WeakMap();
   window.__vt = {
+    sleep: (ms) => new Promise((r) => RT(r, ms)), // chờ theo đồng hồ THẬT (dùng cho script quay)
     advance(ms) {
       const target = now + ms;
       for (let g = 0; g < 5000; g++) {
@@ -137,7 +139,14 @@ const VIRTUAL_TIME = `(() => {
       const u = r.url();
       if (isFont(u)) {
         const f = fontFile(u);
-        if (fs.existsSync(f)) return r.respond({ status: 200, body: fs.readFileSync(f),
+        // CSS: lược các @font-face có file chữ chưa tải (bộ ký tự ngoài tiếng Việt) — Chrome sẽ không đòi file đó
+        const body = !fs.existsSync(f) ? null : f.endsWith('.css')
+          ? fs.readFileSync(f, 'utf8').replace(/(\/\*[^*]*\*\/\s*)?@font-face\s*{[^}]*}/g, (blk) => {
+            const m = blk.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/);
+            return !m || fs.existsSync(fontFile(m[1])) ? blk : '';
+          })
+          : fs.readFileSync(f);
+        if (body) return r.respond({ status: 200, body,
           contentType: f.endsWith('.css') ? 'text/css; charset=utf-8' : 'font/woff2',
           headers: { 'Access-Control-Allow-Origin': '*' } }).catch(() => {});
         if (TAI_FONT) return r.continue().catch(() => {});
@@ -161,14 +170,17 @@ const VIRTUAL_TIME = `(() => {
     const thiepMark = '/' + CFG.thiep.split('/').slice(-2, -1)[0] + '/';
 
     const advance = async (ms) => {
-      for (const f of page.frames()) await f.evaluate((m) => window.__vt && window.__vt.advance(m), ms).catch(() => {});
+      // chỉ khung của trang local — khung trống/bị chặn (vd iframe bản đồ) gọi vào sẽ treo mãi
+      for (const f of page.frames()) {
+        if (f.url().startsWith('http://127.0.0.1')) await f.evaluate((m) => window.__vt && window.__vt.advance(m), ms).catch(() => {});
+      }
     };
     const openStage = async () => {
-      await page.goto(STAGE, { waitUntil: 'networkidle0', timeout: 90000 });
+      dbg('goto'); await page.goto(STAGE, { waitUntil: 'networkidle0', timeout: 90000 }); dbg('loaded');
       for (let i = 0; i < 60; i++) {
         const f = page.frames().find((fr) => fr.url().includes(thiepMark));
         if (f && await f.evaluate((s) => !!document.querySelector(s), CFG.cho || 'body').catch(() => false)) {
-          await f.evaluate(() => document.fonts.ready);
+          dbg('frame ok'); await f.evaluate(() => document.fonts.ready); dbg('fonts ready');
           for (let k = 0; k < 30; k++) await advance(DT); // 1 giây ảo cho trang ổn định
           return f;
         }
@@ -185,7 +197,8 @@ const VIRTUAL_TIME = `(() => {
     for (let k = 0; k < 60; k++) await advance(DT);
     const H = await frame.evaluate(() => document.documentElement.scrollHeight);
     for (let y = 0; y <= H; y += 400) { await frame.evaluate((v) => window.scrollTo(0, v), y); await advance(DT); }
-    await frame.evaluate(() => Promise.all([...document.images].map((im) => im.decode().catch(() => {}))));
+    // ảnh lazy chưa nạp thì decode() chờ mãi — giới hạn 8 giây
+    await frame.evaluate(() => Promise.race([Promise.all([...document.images].map((im) => im.decode().catch(() => {}))), window.__vt.sleep(8000)])).catch(() => {});
     if (TAI_FONT) { await new Promise((r) => setTimeout(r, 1500)); console.log(`Da luu ${saved} file font moi vao font-cache/ — nho commit.`); return; }
     if (missing.size) {
       throw new Error(`Thiếu ${missing.size} file font trong font-cache/ (vd ${[...missing][0]}).\n`
