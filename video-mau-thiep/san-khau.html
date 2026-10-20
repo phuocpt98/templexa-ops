@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Sân khấu quay video mẫu thiệp — Templexa</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:1080px; height:1920px; overflow:hidden; font-family:'Noto Sans','Segoe UI',sans-serif; }
+  body {
+    background:#f6e3ea center/cover no-repeat;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  /* Tieu de dau clip */
+  #tieu-de {
+    margin-top:110px;
+    background:rgba(255,255,255,.82);
+    color:#8a4b63;
+    font-size:37px; font-weight:700; letter-spacing:9px;
+    padding:20px 44px; border-radius:999px;
+    box-shadow:0 10px 34px rgba(120,60,80,.20);
+    z-index:3; white-space:nowrap;
+  }
+  /* Dien thoai */
+  #dien-thoai {
+    margin-top:64px;
+    width:660px; height:1360px;
+    transform:rotate(-4deg);
+    background:#171217;
+    border-radius:64px;
+    padding:16px;
+    box-shadow:34px 54px 90px rgba(60,25,45,.45), 0 0 0 3px #3a2c36;
+    z-index:2;
+  }
+  #man-hinh {
+    width:100%; height:100%;
+    border-radius:50px; overflow:hidden;
+    background:#fff; position:relative;
+    /* Ép cắt theo góc bo — tránh ảnh trong khung tràn góc vuông ra ngoài viền */
+    clip-path:inset(0 round 50px);
+  }
+  #man-hinh iframe { width:100%; height:100%; border:0; display:block; border-radius:50px; }
+  /* Tai tho / loa */
+  #notch {
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:170px; height:26px; border-radius:999px; background:#171217; z-index:5;
+  }
+  /* Dau an templexa.vn — chi 1 cho duy nhat tren nen, vi tri tuy nen (tham so vi-tri) */
+  #dau-an {
+    position:absolute; z-index:1;
+    color:#fff; font-size:41px; font-weight:800; letter-spacing:2px;
+    text-shadow:0 2px 16px rgba(70,25,50,.65), 0 0 3px rgba(70,25,50,.5);
+    white-space:nowrap;
+  }
+  #dau-an.trai-tren { top:52px; left:56px; }
+  #dau-an.phai-tren { top:52px; right:56px; }
+  #dau-an.trai-duoi { bottom:52px; left:56px; }
+  #dau-an.phai-duoi { bottom:52px; right:56px; }
+  #dau-an.giua-duoi { bottom:52px; left:50%; transform:translateX(-50%); }
+  /* Man ket: chu hien DE LEN hinh video (thiep van chay phia sau), khong doi nen */
+  #man-ket {
+    position:fixed; inset:0; z-index:10;
+    background:linear-gradient(to top, rgba(26,8,38,.78) 0%, rgba(26,8,38,.52) 30%, rgba(26,8,38,0) 58%);
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    text-align:center; padding:0 90px 170px;
+    opacity:0; pointer-events:none; transition:opacity .7s ease;
+  }
+  #man-ket.hien { opacity:1; }
+  #man-ket .logo {
+    font-size:96px; font-weight:900; letter-spacing:6px; color:#fff; line-height:1.05;
+    background:linear-gradient(92deg,#d9bcff,#a8c4ff);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 4px 22px rgba(20,5,35,.65));
+  }
+  #man-ket .web { margin-top:16px; font-size:54px; font-weight:700; color:#fff; letter-spacing:2px; text-shadow:0 3px 18px rgba(20,5,35,.7); }
+  #man-ket .gach { width:120px; height:6px; border-radius:3px; background:linear-gradient(90deg,#7C4AF7,#3D75F6); margin:34px 0 30px; box-shadow:0 2px 12px rgba(20,5,35,.5); }
+  #man-ket .gioi-thieu { font-size:39px; line-height:1.5; color:#f4eefc; font-weight:500; text-shadow:0 2px 14px rgba(20,5,35,.75); }
+</style>
+</head>
+<body>
+  <div id="tieu-de">MẪU THIỆP CƯỚI ONLINE</div>
+  <div id="dien-thoai">
+    <div id="man-hinh">
+      <div id="notch"></div>
+      <iframe id="thiep" title="Mẫu thiệp"></iframe>
+    </div>
+  </div>
+  <div id="dau-an" class="phai-duoi">templexa.vn</div>
+
+  <div id="man-ket">
+    <div class="logo">TEMPLEXA</div>
+    <div class="web">templexa.vn</div>
+    <div class="gach"></div>
+    <div class="gioi-thieu" id="dong-gioi-thieu"></div>
+  </div>
+
+<script>
+  var q = new URLSearchParams(location.search);
+  if (q.get('nen')) document.body.style.backgroundImage = 'url("' + q.get('nen') + '")';
+  if (q.get('tieu-de')) document.getElementById('tieu-de').textContent = q.get('tieu-de');
+  if (q.get('gioi-thieu')) document.getElementById('dong-gioi-thieu').textContent = q.get('gioi-thieu');
+  if (q.get('vi-tri')) document.getElementById('dau-an').className = q.get('vi-tri');
+  if (q.get('thiep')) document.getElementById('thiep').src = q.get('thiep');
+  window.hienManKet = function () { document.getElementById('man-ket').classList.add('hien'); };
+</script>
+</body>
+</html>
