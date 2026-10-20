@@ -41,7 +41,7 @@ if (!fs.existsSync(path.join(SRC, 'index.html')) || !OUT) {
 }
 const KEY = opt('--key', path.basename(OUT).replace(/[^a-z0-9]/gi, '').slice(0, 12));
 const WORK = path.resolve(opt('--work', path.join(SRC, '_convert')));
-const DATE = opt('--date', '');
+let DATE = opt('--date', '');
 const TPX = argv.includes('--templexa');
 const QR_FB = path.join(TEMPLEXA, 'products/shared/images/icons/qr-facebook-templexa.webp');
 // chạy lại: dọn ảnh/font cũ do CHÍNH script sinh (nhận biết qua dòng chú thích đầu index.html)
@@ -275,6 +275,10 @@ function actions(n) {
       const s = c.event_custom_script || '';
       const later = s.match(/setTimeout\(\s*\(\)\s*=(?:&#62;|>)\s*(?:&#123;|\{)?\s*\$\((?:&#34;|")([.#][\w-]+)(?:&#34;|")\)\.hide\(\)\s*(?:&#125;|\})?\s*,\s*(\d+)\)/);
       if (later) { out.push({ t: 'hideLater', sel: later[1], ms: +later[2] }); continue; }
+      const sh = [...s.matchAll(/\$\((?:&#34;|")#([A-Za-z0-9_]+)(?:&#34;|")\)\.(show|hide)\(\)/g)];
+      if (sh.length && s.replace(/\$\((?:&#34;|")#[A-Za-z0-9_]+(?:&#34;|")\)\.(show|hide)\(\);?/g, '').trim() === '') {
+        sh.forEach((m) => out.push({ t: m[2], ids: [idOf(m[1])] })); continue;
+      }
       if (/\.css\((?:&#34;|")height(?:&#34;|")\s*,\s*(?:&#34;|")100%/.test(s) || /scrollIntoView/.test(s)) continue;   // popup phủ màn / cuộn — đã xử lý chung
       if (/clearCanvas/.test(s)) out.push({ t: 'fn', fn: 'sig.clear' });
       else if (/previewSignature/.test(s)) out.push({ t: 'fn', fn: 'sig.preview' });
@@ -465,6 +469,21 @@ function emit(n) {
     return `<div class="el ln${x}${hid}" id="${s}"${a}><i></i></div>`;
   }
   if (t === 'ladi-shape') return `<div class="el shape${x}${hid}" id="${s}"${a}>${n.svg.replace(/<metadata>[\s\S]*?<\/metadata>/g, '').replace(/\s+/g, ' ')}</div>`;
+  if (t === 'ladi-gallery' && n.gal) {
+    const g = n.gal; const ev = n.ev || {};
+    const imgs = g.items.map((u) => asset(u)).filter(Boolean);
+    const slides = imgs.map((u, i) => `<div class="gal-s${i ? '' : ' on'}" style="background-image:url(${u})"></div>`).join('');
+    const thumbs = imgs.map((u, i) => `<div class="gal-t${i ? '' : ' on'}" style="background-image:url(${u})"></div>`).join('');
+    const geo = (z) => { const q = z.gal; const c = [];
+      if (q.view) c.push([`#${s} .gal-v`, [`left:${px(q.view[0])}`, `top:${px(q.view[1])}`, `width:${px(q.view[2])}`, `height:${px(q.view[3])}`, `border-radius:${q.viewSt['border-radius'] || 0}`]]);
+      if (q.ctrl) c.push([`#${s} .gal-c`, [`left:${px(q.ctrl[0])}`, `top:${px(q.ctrl[1])}`, `width:${px(q.ctrl[2])}`, `height:${px(q.ctrl[3])}`]]);
+      if (q.thumb) c.push([`#${s} .gal-t`, [`width:${px(q.thumb[2])}`, `height:${px(q.thumb[3])}`, `margin-right:${px(Math.max(0, q.thumbGap - q.thumb[2]))}`].concat(boxcss(q.thumbSt, { skipbg: true }))]);
+      return c; };
+    geo(n).forEach((r) => rules.push(r));
+    rules.push([`#${s} .gal-s`, [`background-size:${g.itemSize || 'cover'}`]]);
+    const d = DMAP[n.id]; if (d && d.gal) geo(d).forEach(([sel, c]) => { const m = (rules.find((r) => r[0] === sel) || [, []])[1]; const dd = c.filter((x) => !m.includes(x)); if (dd.length) drules.push([sel, dd]); });
+    return `<div class="el gal" id="${s}"${ev.ah ? ` data-auto="${(+ev.ae || 4) * 1000}"` : ''}${animAttr(n)}><div class="gal-v">${slides}<button class="gal-a gal-prev" type="button" aria-label="Ảnh trước">‹</button><button class="gal-a gal-next" type="button" aria-label="Ảnh sau">›</button></div><div class="gal-c"><div class="gal-tr">${thumbs}</div></div></div>`;
+  }
   if (t === 'ladi-countdown') return countdown(n);
   if (t === 'ladi-form') return form(n);
   if (t === 'ladi-html-code') return htmlCode(n);
@@ -472,6 +491,10 @@ function emit(n) {
   return `<div class="el todo-ai" id="${s}">${(n.raw || '').replace(/<script[\s\S]*?<\/script>/g, '')}</div>`;
 }
 
+function secHid(m, d) {   // ẩn sẵn ở cả 2 khổ → hid; chỉ điện thoại → hid-m; chỉ máy tính → hid-d
+  const hm = m.disp === 'none', hd = d ? d.disp === 'none' : hm;
+  return hm && hd ? ' hid' : hm ? ' hid-m' : hd ? ' hid-d' : '';
+}
 function section(sec, idx, DSEC) {
   const name = 'sec' + (idx + 1);
   const firstText = (function find(ns) { for (const k of ns) { if (k.html && k.html.replace(/<[^>]+>/g, '').trim()) return k.html.replace(/<[^>]+>/g, '').trim(); const r = k.kids && find(k.kids); if (r) return r; } return ''; })(sec.kids);
@@ -492,7 +515,7 @@ function section(sec, idx, DSEC) {
   const ov = sec.ov && boxcss(sec.ov);
   if (ov && ov.length) { rules.push([`#${name} > .sec-ov`, ov]); body += '<div class="sec-ov"></div>'; }
   body += sec.kids.map(emit).join('');
-  return `\n<!-- ===== ${name}: ${esc(firstText.slice(0, 50))} ===== -->\n<section class="sec${sec.disp === 'none' ? ' hid' : ''}" id="${name}">${body}</section>\n`;
+  return `\n<!-- ===== ${name}: ${esc(firstText.slice(0, 50))} ===== -->\n<section class="sec${secHid(sec, DSEC[sec.id])}" id="${name}">${body}</section>\n`;
 }
 
 function popup(p) {
@@ -540,6 +563,20 @@ function popup(p) {
   const DSEC = {}; D.sections.forEach((x) => { DSEC[x.id] = x; });
   Object.values(M.eventData || {}).forEach((e) => (e.cs || []).forEach((c) => { if (['collapse', 'hidden_show'].includes(c.a) && c.dw) TARGETS.add(c.dw); }));
   const visible = M.sections;   // gồm cả phần ẩn sẵn (hiện khi bấm nút)
+  if (!DATE) {   // tự tìm ngày cưới trong chữ của thiệp (ngày xuất hiện nhiều nhất) cho đếm ngược
+    const all = []; const tw0 = (ns) => ns.forEach((k) => { if (k.html) all.push(k.html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')); if (k.kids) tw0(k.kids); });
+    visible.forEach((x, i) => { const n0 = all.length; tw0(x.kids); if (i < 2) for (let k = n0; k < all.length; k++) all[k] = (all[k] + ' | ').repeat(3); });   // ngày ở bìa nặng gấp 3
+    const txt = all.join(' | ').replace(/\s*([.\/•·-])\s*/g, '$1').replace(/(\d)\s+(?=\d)/g, '$1');
+    const cnt = {};
+    for (const m of txt.matchAll(/\b(\d{1,2})[.\/•·-](\d{1,2})[.\/•·-](20\d{2})\b/g)) { const k = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; cnt[k] = (cnt[k] || 0) + 1; }
+    for (const m of txt.matchAll(/ngày\s*(\d{1,2})\s*tháng\s*(\d{1,2})\s*năm\s*(20\d{2})/gi)) { const k = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; cnt[k] = (cnt[k] || 0) + 2; }
+    const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+    if (best && +best[0].slice(5, 7) <= 12) {
+      const tm = txt.match(/\b(\d{1,2})\s*(?:giờ|g|h|:)\s*(\d{2})\b/i);
+      DATE = `${best[0]}T${tm ? tm[1].padStart(2, '0') + ':' + tm[2] : '11:00'}:00+07:00`;
+      NOTE.push(`Đếm ngược tự lấy ngày ${DATE} từ chữ trong thiệp — sai thì chạy lại với --date.`);
+    }
+  }
   visible.forEach((x, i) => { SECNAME[x.id] = 'sec' + (i + 1); });
 
   let body = visible.map((x, i) => section(x, i, DSEC)).join('');
@@ -677,6 +714,16 @@ function popup(p) {
       if (local) { await pg.setRequestInterception(true); pg.on('request', (r) => (/^(http:\/\/127\.0\.0\.1|data:)/.test(r.url()) || /fonts\.(googleapis|gstatic)/.test(r.url()) ? r.continue() : r.abort()).catch(() => {})); }
       await pg.setViewport({ width: w, height: h });
       await pg.goto(url, { waitUntil: 'networkidle2', timeout: 90000 }).catch(() => {});
+      // trạng thái "đã mở thiệp" cho cả 2 bản: bỏ khoá cuộn, đóng popup/phong bì, hiện mọi phần (so được toàn trang)
+      await pg.evaluate(() => {
+        const st = document.createElement('style');
+        st.textContent = 'html,body{overflow:visible!important;height:auto!important;position:static!important}#SECTION_POPUP .ladi-container>.ladi-element{display:none!important}.pop{display:none!important}';
+        document.head.appendChild(st);
+        [document.documentElement, document.body].forEach((e) => { e.classList.remove('no-scroll', 'BGlock-scroll'); ['position', 'overflow', 'height', 'top'].forEach((k) => e.style.setProperty(k, k === 'position' ? 'static' : k === 'top' ? 'auto' : k === 'height' ? 'auto' : 'visible', 'important')); });
+        document.querySelectorAll('.ladi-wraper > .ladi-section').forEach((x) => { if (getComputedStyle(x).display === 'none') x.style.setProperty('display', 'block', 'important'); });
+        document.querySelectorAll('.sec').forEach((x) => { if (getComputedStyle(x).display === 'none') x.style.setProperty('display', 'block', 'important'); });
+      });
+      await new Promise((r) => setTimeout(r, 600));
       const H = await pg.evaluate(() => document.documentElement.scrollHeight);
       for (let y = 0; y < H; y += 300) { await pg.evaluate((v) => scrollTo(0, v), y); await new Promise((r) => setTimeout(r, 120)); }
       await new Promise((r) => setTimeout(r, 7000)); await pg.evaluate(() => scrollTo(0, 0)); await new Promise((r) => setTimeout(r, 400));

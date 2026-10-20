@@ -29,6 +29,18 @@ body{background:#fff;font-family:'Open Sans',sans-serif;overflow-x:hidden}
 .zoom{cursor:zoom-in}
 .collapse-target{display:none}.collapse-target.open{display:block}
 .hid{display:none}
+.hid-m{display:none}
+@media (min-width:768px){.hid-m{display:block}.hid-d{display:none}}
+/* trình chiếu ảnh */
+.gal-v,.gal-c{position:absolute;overflow:hidden}
+.gal-s{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;opacity:0;transition:opacity .6s}
+.gal-s.on{opacity:1}
+.gal-a{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;font-size:22px;line-height:1;cursor:pointer;z-index:2}
+.gal-prev{left:8px}.gal-next{right:8px}
+.gal-tr{display:flex;height:100%;overflow-x:auto;scrollbar-width:none}
+.gal-tr::-webkit-scrollbar{display:none}
+.gal-t{flex:0 0 auto;background-size:cover;background-position:center;opacity:.55;cursor:pointer}
+.gal-t.on{opacity:1}
 .map iframe{width:100%;height:100%;border:0}
 .cd-i{position:absolute;display:flex;align-items:center;justify-content:center}
 .cd[style*="flex"] .cd-i,.cd .cd-i{position:absolute}

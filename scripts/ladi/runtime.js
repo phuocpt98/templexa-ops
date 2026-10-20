@@ -262,7 +262,7 @@
   function setShown(id, on) {
     var x = document.getElementById(id); if (!x) return;
     if (x.classList.contains('pop')) { if (on) openPop(id); else x.hidden = true; return; }
-    x.classList.toggle('hid', !on);
+    if (on) x.classList.remove('hid', 'hid-m', 'hid-d'); else x.classList.add('hid');
     if (x.classList.contains('collapse-target')) x.classList.toggle('open', on);
     if (on) $$('[data-a]', x).concat(x.hasAttribute('data-a') ? [x] : []).forEach(function (k) { io.observe(k); });
   }
@@ -311,6 +311,24 @@
   });
   // popup tự mở khi tải trang (phong bì…)
   $$('.pop[data-open]').forEach(function (p) { setTimeout(function () { openPop(p.id); }, +p.getAttribute('data-open') || 0); });
+
+  // ---- Trình chiếu ảnh (ladi-gallery): mũi tên, ảnh nhỏ, tự chuyển, vuốt
+  $$('.gal').forEach(function (g) {
+    var ss = $$('.gal-s', g), ts = $$('.gal-t', g), i = 0, tr = $('.gal-tr', g);
+    var go = function (k) {
+      i = (k + ss.length) % ss.length;
+      ss.forEach(function (x, j) { x.classList.toggle('on', j === i); });
+      ts.forEach(function (x, j) { x.classList.toggle('on', j === i); });
+      if (tr && ts[i]) tr.scrollTo({ left: ts[i].offsetLeft - tr.clientWidth / 2 + ts[i].offsetWidth / 2, behavior: 'smooth' });
+    };
+    $('.gal-prev', g).addEventListener('click', function (e) { e.stopPropagation(); go(i - 1); });
+    $('.gal-next', g).addEventListener('click', function (e) { e.stopPropagation(); go(i + 1); });
+    ts.forEach(function (t, j) { t.addEventListener('click', function () { go(j); }); });
+    var sx = 0, v = $('.gal-v', g);
+    v.addEventListener('touchstart', function (e) { sx = e.changedTouches[0].screenX; }, { passive: true });
+    v.addEventListener('touchend', function (e) { var dx = e.changedTouches[0].screenX - sx; if (dx < -40) go(i + 1); if (dx > 40) go(i - 1); }, { passive: true });
+    var ms = +g.getAttribute('data-auto'); if (ms) setInterval(function () { if (!document.hidden) go(i + 1); }, ms);
+  });
 
   // ---- Album: bấm ảnh phóng to, vuốt/nút chuyển ảnh
   var lb = $('#lightbox');

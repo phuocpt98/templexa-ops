@@ -72,6 +72,15 @@ module.exports = function extractInPage() {
       o.st = pick(inner, BOX);
       var ib = inner.querySelector('.ladi-image-background'), is = getComputedStyle(ib);
       o.img = [is.backgroundImage, is.left, is.top, is.width, is.height, is.backgroundSize, is.backgroundPosition];
+    } else if (type === 'ladi-gallery') {
+      var gv = inner.querySelector('.ladi-gallery-view'), gc = inner.querySelector('.ladi-gallery-control'), er0 = el.getBoundingClientRect();
+      var rel = function (x) { if (!x) return null; var r = x.getBoundingClientRect(); return [r.left - er0.left, r.top - er0.top, r.width, r.height]; };
+      o.gal = { view: rel(gv), ctrl: rel(gc),
+        items: [].map.call(inner.querySelectorAll('.ladi-gallery-view-item'), function (x) { return getComputedStyle(x).backgroundImage; }),
+        thumb: rel(inner.querySelector('.ladi-gallery-control-item')),
+        thumbGap: (function () { var t = inner.querySelectorAll('.ladi-gallery-control-item'); return t.length > 1 ? t[1].getBoundingClientRect().left - t[0].getBoundingClientRect().left : 0; })(),
+        viewSt: pick(gv, ['border-radius', 'background-size', 'background-color']), thumbSt: pick(inner.querySelector('.ladi-gallery-control-item'), ['border-radius', 'border-top-width', 'border-top-color', 'border-top-style']),
+        itemSize: gv && inner.querySelector('.ladi-gallery-view-item') ? getComputedStyle(inner.querySelector('.ladi-gallery-view-item')).backgroundSize : 'cover' };
     } else if (type === 'ladi-line') {
       var lc = inner.querySelector('.ladi-line-container'), er = el.getBoundingClientRect(), lr = lc.getBoundingClientRect();
       o.line = { box: [lr.left - er.left, lr.top - er.top, lr.width, lr.height],
