@@ -15,6 +15,7 @@ templexa-ops/
 │   ├── 01-hoi-thong-tin.md  bộ câu hỏi bắt buộc — thiếu là phải hỏi
 │   ├── 10-tao-thiep.md      nhánh git → clone/new → ảnh → đổi nội dung → chụp kiểm → xem thử
 │   ├── 15-tao-anh.md        Muse tự tạo ảnh/video: thông số, prompt mẫu, tách nền bằng cut-icons.js
+│   ├── 16-chuyen-thiep-ladi.md  thiệp đại lý LadiPage → mẫu Templexa thuần (scripts/ladi/convert.js + REPORT cho AI)
 │   ├── 20-sua-thiep.md      góp ý qua trang sua-thiep.html → feedback.md → sửa → duyệt
 │   ├── 30-xuat-ban.md       ảnh share → link khách → QR → catalog → duyệt → lên templexa.vn · thứ tự catalog
 │   └── 90-dong-job.md       lưu trữ, xoá ảnh gốc
