@@ -23,7 +23,7 @@ body{background:#fff;font-family:'Open Sans',sans-serif;overflow-x:hidden}
 .t{text-align:center;line-height:1.6;overflow-wrap:break-word}
 .t p{margin:0}
 .t .op{opacity:var(--op)}
-.im i{position:absolute;display:block}
+.im i,.ln i{position:absolute;display:block}
 .btn{display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
 .shape svg{display:block;width:100%;height:100%}
 .zoom{cursor:zoom-in}
@@ -32,6 +32,26 @@ body{background:#fff;font-family:'Open Sans',sans-serif;overflow-x:hidden}
 .hid-m{display:none}
 @media (min-width:768px){.hid-m{display:block}.hid-d{display:none}}
 /* trình chiếu ảnh */
+.bfly-box{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}
+.bfly{position:absolute;bottom:-40px;animation:bfly-up linear forwards;opacity:0}
+.bfly svg{width:100%;height:100%;overflow:visible}
+.bfly .w{transform-origin:20px 16px;animation:bfly-flap .35s ease-in-out infinite alternate}
+.bfly .w2{animation-delay:.05s}
+@keyframes bfly-flap{to{transform:scaleX(.25)}}
+@keyframes bfly-up{0%{opacity:0;transform:translate(0,0)}10%{opacity:.95}50%{transform:translate(var(--sway),-55vh) rotate(10deg)}90%{opacity:.9}100%{opacity:0;transform:translate(calc(var(--sway) * -1),-115vh) rotate(-8deg)}}
+/* cửa bìa: 2 cánh trượt ra khi mở thiệp */
+#door{position:fixed;inset:0;z-index:98}
+.door-p{position:absolute;top:0;width:50%;height:100%;overflow:hidden;transition:transform var(--time,2s) ease}
+.door-p::before,.door-p::after{content:'';position:absolute;inset:0}
+.door-p::before{background:var(--bg);background-size:200% 100%}
+.door-p::after{background:var(--img) no-repeat;background-size:cover}
+.door-l{left:0}.door-r{right:0}
+.door-l::before,.door-r::after{background-position:left center}
+.door-l::after,.door-r::before{background-position:right center}
+#door.open .door-l{transform:translateX(-100%)}#door.open .door-r{transform:translateX(100%)}
+.revealed{transition:transform .9s ease,opacity .9s ease;transform:translateY(-105%);opacity:0;pointer-events:none}
+.im .ts-top{position:absolute;inset:0;background:center/cover no-repeat;opacity:0;transition:opacity .9s}
+.im .ts-top.on{opacity:1}
 .gal-v,.gal-c{position:absolute;overflow:hidden}
 .gal-s{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;opacity:0;transition:opacity .6s}
 .gal-s.on{opacity:1}

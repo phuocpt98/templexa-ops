@@ -303,7 +303,11 @@
         }
         if (a.t === 'dropbox') dropbox(a.id, el, a.at);
         if (a.t === 'hideLater') setTimeout(function (sel) { $$(sel).forEach(function (h) { h.style.display = 'none'; }); }.bind(null, a.sel), a.ms);
+        if (a.t === 'fx' && a.fx === 'butterfly') butterflies(a);
+        if (a.t === 'door') { var dr = document.getElementById('door'); if (dr) { dr.style.setProperty('--time', a.dur + 'ms'); dr.classList.add('open'); setTimeout(function () { dr.style.display = 'none'; }, a.dur + 100); } }
+        if (a.t === 'reveal') { var rv = document.getElementById(a.id); if (rv) rv.classList.toggle('revealed'); }
         if (a.t === 'hideSel') $$(a.sel).forEach(function (h) { h.style.display = 'none'; });
+        if (a.t === 'addClass') $$(a.sel).forEach(function (h) { h.style.animation = ''; h.classList.add('shown'); void h.offsetWidth; h.classList.add(a.cls); });
         if (a.t === 'showSel') $$(a.sel).forEach(function (h) { h.style.display = ''; });
         if (a.t === 'link') location.href = a.href;
       }
@@ -319,6 +323,31 @@
   });
   // popup tự mở khi tải trang (phong bì…)
   $$('.pop[data-open]').forEach(function (p) { setTimeout(function () { openPop(p.id); }, +p.getAttribute('data-open') || 0); });
+
+  // ---- Bướm bay (runButterflyEffect của thư viện đại lý)
+  function butterflies(o) {
+    var box = document.createElement('div'); box.className = 'bfly-box'; document.body.appendChild(box);
+    for (var k = 0; k < (o.count || 16); k++) {
+      var b = document.createElement('div'); b.className = 'bfly';
+      var sz = (18 + Math.random() * 14) * (o.size || 1);
+      b.style.cssText = 'left:' + (Math.random() * 100) + 'vw;width:' + sz + 'px;height:' + sz + 'px;animation-duration:' + ((o.dur || 12000) / 1000 * (0.6 + Math.random() * 0.5)) + 's;animation-delay:' + (Math.random() * 2) + 's;--sway:' + (Math.random() * 120 - 60) + 'px';
+      b.innerHTML = '<svg viewBox="0 0 40 32"><g class="w"><path d="M20 16C14 2 2 2 3 10s9 9 17 6z" fill="' + o.color + '"/><path d="M20 16C12 18 6 26 10 29s9-6 10-13z" fill="' + o.color + '" opacity=".85"/></g><g class="w w2"><path d="M20 16C26 2 38 2 37 10s-9 9-17 6z" fill="' + o.color + '"/><path d="M20 16c8 2 14 10 10 13s-9-6-10-13z" fill="' + o.color + '" opacity=".85"/></g><rect x="19" y="9" width="2" height="15" rx="1" fill="' + o.body + '"/></svg>';
+      box.appendChild(b);
+    }
+    setTimeout(function () { box.remove(); }, (o.dur || 12000) * 1.3 + 2000);
+  }
+
+  // ---- Khung ảnh tự chuyển qua ảnh album (class timelineSlide của thư viện đại lý)
+  $$('.timelineSlide').forEach(function (el) {
+    var i0 = $('i', el); if (!i0) return;
+    var list = $$('.zoom i, .snap .photoBookImage .ladi-image-background').map(function (x) { var m = getComputedStyle(x).backgroundImage.match(/url\("?(.*?)"?\)/); return m && m[1]; }).filter(Boolean);
+    if (list.length < 2) return;
+    var k = 0, top = document.createElement('i'); top.className = 'ts-top'; el.appendChild(top);
+    setInterval(function () {
+      k = (k + 1) % list.length; top.style.backgroundImage = 'url("' + list[k] + '")'; top.classList.add('on');
+      setTimeout(function () { i0.style.backgroundImage = top.style.backgroundImage; top.classList.remove('on'); }, 900);
+    }, 3000);
+  });
 
   // ---- Trình chiếu ảnh (ladi-gallery): mũi tên, ảnh nhỏ, tự chuyển, vuốt
   $$('.gal').forEach(function (g) {

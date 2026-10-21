@@ -261,8 +261,9 @@ function tdiff(n) {
 }
 const FIXED = [];
 function fixedCss(n) {
-  const [l, r, t, b, tf] = n.fix;
-  return ['position:fixed', `left:${l === 'auto' ? 'auto' : px(l)}`, `right:${r === 'auto' ? 'auto' : px(r)}`, `top:${t === 'auto' ? 'auto' : px(t)}`, `bottom:${b === 'auto' ? 'auto' : px(b)}`, `width:${px(n.pos[2])}`, `height:${px(n.pos[3])}`, 'z-index:50'].concat(tf && tf !== 'none' ? ['transform:' + tf] : []);
+  const [l, r, t, b, tf, zz] = n.fix;
+  const z0 = parseInt(zz, 10), zi = isNaN(z0) ? 50 : z0 >= 1e6 ? 97 : Math.min(z0, 99);   // dưới popup (100); bìa z ≥ 99 nằm trên cửa (98)
+  return ['position:fixed', `left:${l === 'auto' ? 'auto' : px(l)}`, `right:${r === 'auto' ? 'auto' : px(r)}`, `top:${t === 'auto' ? 'auto' : px(t)}`, `bottom:${b === 'auto' ? 'auto' : px(b)}`, `width:${px(n.pos[2])}`, `height:${px(n.pos[3])}`, `z-index:${zi}`].concat(tf && tf !== 'none' ? ['transform:' + tf] : []);
 }
 
 let SECNAME = {};
@@ -273,10 +274,30 @@ function parseScript(src, base = 0) {
   let t = src.replace(/&#34;/g, '"').replace(/&#39;/g, "'").replace(/&#62;/g, '>').replace(/&#60;/g, '<').replace(/&#123;/g, '{').replace(/&#125;/g, '}');
   const acts = [];
   const Q = `["']`;
-  // setTimeout(() => { … }, N)  (lồng 1 cấp)
-  t = t.replace(/setTimeout\(\s*(?:\(\)\s*=>|function\s*\(\)\s*)\s*\{([\s\S]*?)\}\s*,\s*(\d+)\s*\)\s*;?/g, (m, body, ms) => {
-    const r = parseScript(body, base + +ms); acts.push(...r.acts); return r.rest ? ' ' + r.rest + ' ' : ' ';
-  });
+  // setTimeout(() => { … }, N) — đếm cặp ngoặc để thân hàm có if { } lồng bên trong vẫn đúng
+  for (let guard = 0; guard < 50; guard++) {
+    const m = /setTimeout\(\s*(?:\(\)\s*=>|function\s*\(\)\s*)\s*\{/.exec(t); if (!m) break;
+    let i = m.index + m[0].length, depth = 1;
+    while (i < t.length && depth) { if (t[i] === '{') depth++; else if (t[i] === '}') depth--; i++; }
+    const body = t.slice(m.index + m[0].length, i - 1);
+    const tail = /^\s*,\s*(\d+)\s*\)\s*;?/.exec(t.slice(i));
+    if (!tail) break;
+    const r = parseScript(body, base + +tail[1]); acts.push(...r.acts);
+    t = t.slice(0, m.index) + (r.rest ? ' ' + r.rest + ' ' : ' ') + t.slice(i + tail[0].length);
+  }
+  // biến gán bằng getElementById → thay thẳng bằng document.getElementById("ID"); bỏ lớp if (biến) { … }
+  const vars = {};
+  t = t.replace(/(?:const|let|var)\s+(\w+)\s*=\s*document\.getElementById\(\s*["']([\w-]+)["']\s*\)\s*;?/g, (m, v, id) => { vars[v] = id; return ' '; });
+  for (const [v, id] of Object.entries(vars)) {
+    t = t.replace(new RegExp(`if\\s*\\(\\s*${v}\\s*\\)\\s*\\{([\\s\\S]*?)\\}`, 'g'), '$1')
+      .replace(new RegExp(`\\b${v}\\b(\\??\\.)`, 'g'), `document.getElementById("${id}")$1`);
+  }
+  // document.getElementById("X").style.setProperty("display", "block", …)
+  t = t.replace(/document\.getElementById\(\s*["']([\w-]+)["']\s*\)\??\.style\.setProperty\(\s*["']display["']\s*,\s*["'](none|block|flex)["'][^)]*\)\s*;?/g, (m, id, d) => { acts.push(Object.assign({ t: d === 'none' ? 'hide' : 'show', ids: [idOf(id)] }, base ? { ms: base } : {})); return ' '; });
+  // document.querySelectorAll(".x").forEach(el => { el.style.display = "none" })
+  t = t.replace(/document\.querySelectorAll\(\s*["'](\.[\w-]+)["']\s*\)\.forEach\(\s*\(?(\w+)\)?\s*=>\s*\{?\s*\2\.style\.display\s*=\s*["'](none|block|flex|)["']\s*;?\s*\}?\s*\)\s*;?/g, (m, sel, v, d) => { acts.push(Object.assign({ t: d === 'none' ? 'hideSel' : 'showSel', sel }, base ? { ms: base } : {})); return ' '; });
+  // document.getElementById("X").style.display = "none" | "block"
+  t = t.replace(/document\.getElementById\(\s*["']([\w-]+)["']\s*\)\??\.style\.display\s*=\s*["'](none|block|flex)["']\s*;?/g, (m, id, d) => { acts.push(Object.assign({ t: d === 'none' ? 'hide' : 'show', ids: [idOf(id)] }, base ? { ms: base } : {})); return ' '; });
   const rules = [
     [new RegExp(`\\$\\(${Q}#([\\w-]+)${Q}\\)\\.(show|hide)\\(\\)`, 'g'), (m, id, k) => ({ t: k, ids: [idOf(id)] })],
     [new RegExp(`\\$\\(${Q}#([\\w-]+)${Q}\\)\\.attr\\(\\s*${Q}style${Q}\\s*,\\s*${Q}\\s*display:\\s*(block|flex|none)[^"']*${Q}\\s*\\)`, 'g'), (m, id, d) => ({ t: d === 'none' ? 'hide' : 'show', ids: [idOf(id)] })],
@@ -285,6 +306,17 @@ function parseScript(src, base = 0) {
     [new RegExp(`\\$\\(${Q}(\\.[\\w-]+)${Q}\\)\\.(hide|show)\\(\\)`, 'g'), (m, sel, k) => ({ t: k === 'hide' ? 'hideSel' : 'showSel', sel })],
     [new RegExp(`\\$\\(${Q}#POPUP\\d+${Q}\\)\\.css\\([^)]*\\)`, 'g'), () => null],   // popup phủ màn — đã xử lý chung
     [/handleOpenDoor\(\)/g, () => null],                                                    // hàm không có trong bản gốc
+    // hiệu ứng của bộ thư viện đại lý (code.js / weddingNN.js) → bản viết lại trong runtime
+    [/runButterflyEffect\(\s*\{([^}]*)\}\s*\)/g, (m, o) => {
+      const g = (k, d) => { const r = o.match(new RegExp(k + '\\s*:\\s*["\']?([^,"\'}]+)')); return r ? r[1].trim() : d; };
+      return { t: 'fx', fx: 'butterfly', count: +g('count', 16), size: +g('size', 1), color: g('color', '#fff'), body: g('bodyColor', '#fff'), dur: +g('duration', 12000) };
+    }],
+    [new RegExp(`cuaAnh\\(\\s*${Q}([\\w-]+)${Q}[^)]*\\)`, 'g'), (m, id) => ({ t: 'reveal', id: idOf(id) })],
+    [/runOpenEffects\(\)/g, () => ({ t: 'addClass', sel: '.effectOpen1,.effectOpen2,.effectOpen3,.effectOpen4', cls: 'run' })],   // phần bìa bay ra
+    [/hineOpenCard\(\s*(\d*)\s*\)/g, (m, ms) => ({ t: 'hideSel', sel: '.UIopenCard', ms: +ms || 0 })],
+    [/StartOpenDoor\(\s*(\d*)\s*\)/g, (m, ms) => ({ t: 'door', dur: +ms || 2000 })],   // 2 cánh cửa bìa trượt ra (configOpenDoor)
+    [/(StartScroll|resetBorderedAnimation|enableScroll|disableScroll)\([^)]*\)/g, () => null],
+    [/function\s+\w+\s*\(\)\s*\{\s*\}/g, () => null],
   ];
   for (const [rx, fn] of rules) t = t.replace(rx, (...a) => { const x = fn(...a); if (x) acts.push(base ? Object.assign(x, { ms: base }) : x); return ' '; });
   const rest = t.replace(/\/\/[^\n]*/g, '').replace(/[;\s]+/g, ' ').trim();
@@ -342,7 +374,7 @@ function snapAttrs(n) {
   return { cls: (a.class || '').trim(), attrs: out };
 }
 function fixSnap(raw) {
-  return raw.replace(/<script(?![^>]*application\/json)[\s\S]*?<\/script>/g, '').replace(/<audio[\s\S]*?<\/audio>|<audio[^>]*\/?>/g, '')
+  return raw.replace(/<script(?![^>]*application\/json)[\s\S]*?<\/script>/g, '').replace(/<audio[\s\S]*?<\/audio>|<audio[^>]*\/?>/g, '').replace(/<link[^>]*rel=["']?stylesheet[^>]*>/gi, '')
     .replace(/(src|data-src)="([^"]+)"/g, (m, k, u) => { if (/^(https?:|data:)/.test(u) && !/127\.0\.0\.1/.test(u)) return m; const a = asset(u); return a ? `${k}="${a}"` : m; })
     .replace(/url\((&quot;|["'])?([^"')&]+)(&quot;|["'])?\)/g, (m, q, u) => { if (/^data:/.test(u)) return m; const a = asset(u); return a ? `url(${a})` : m; });
 }
@@ -480,6 +512,10 @@ function emit(n) {
     R(`#${s}`, n, (z) => boxcss(z.st).concat(parseFloat(z.eop) < 1 && !z.anim ? [`opacity:${z.eop}`] : []));
     if (parseFloat(n.eop) < 1 && n.anim) NOTE.push(`#${s} mờ ${n.eop} và có hiệu ứng — kiểm độ mờ sau hiệu ứng.`);
     if (t === 'ladi-frame') TODO.push(`#${s} là khung "frame" của LadiPage — kiểm lại hiển thị.`);
+    if (n.raw) {   // hộp có nội dung do script gốc chèn — chụp lại, đếm ngược thì gắn chạy
+      const cd = /countdown-item|cd-day/.test(n.raw);
+      return `<div class="el snap${cd ? ' cd' : ''}${x}${hid}" id="${s}"${cd && DATE ? ` data-at="${DATE}"` : ''}${a}><div class="ladi-box" style="${esc(n.innerStyle || '')}">${fixSnap(n.raw)}</div></div>`;
+    }
     return `<div class="el${x}${hid}" id="${s}"${a}></div>`;
   }
   if (t === 'ladi-image') {
@@ -487,6 +523,7 @@ function emit(n) {
     const url = asset(n.img[0], null, [parseFloat(n.img[3]), parseFloat(n.img[4])]);
     R(`#${s} i`, n, (z) => {
       const [, l, tp, w, h, bs, bp] = z.img; const u = asset(z.img[0], null, [parseFloat(w), parseFloat(h)]) || url;
+      if (!u) return ['display:none'];   // ảnh không có nguồn (script gốc gắn sau / để trống)
       const fit = bs && bs !== 'auto' && bs !== 'cover' ? `${bp || '0 0'}/${bs}` : `${bp && bp !== '0% 0%' ? bp : '0 0'}/cover`;   // điểm lấy nét riêng của ảnh (bản v2)
       // luôn ghi đúng cỡ lớp ảnh như LadiPage (khung có viền thì viền che bớt ảnh, không co ảnh lại)
       const op = parseFloat(z.eop);   // độ mờ của cả phần tử → gắn vào lớp ảnh để hiệu ứng xuất hiện không ghi đè
@@ -518,6 +555,12 @@ function emit(n) {
   if (t === 'ladi-countdown') return countdown(n);
   if (t === 'ladi-form') return form(n);
   if (t === 'ladi-html-code') return htmlCode(n);
+  if (/^IMAGE/.test(n.id)) {   // ảnh bị thư viện gốc dựng lại lúc chạy (vd timelineSlide) — giữ khung, runtime lo phần chạy
+    const u = ((n.raw || '').match(/url\((?:&quot;|["'])?([^"')&]+)/) || [])[1];
+    R(`#${s}`, n, (z) => ['overflow:hidden']);
+    if (u) rules.push([`#${s} i`, ['inset:0', `background:url(${asset(u)}) center/cover no-repeat`]]);
+    return `<div class="el im${x}${hid}" id="${s}"${a}><i></i></div>`;
+  }
   TODO.push(`#${s} loại "${t}" chưa hỗ trợ (carousel/gallery/video/tabs…) — đã chép nguyên, AI viết lại.`);
   return `<div class="el todo-ai" id="${s}">${(n.raw || '').replace(/<script[\s\S]*?<\/script>/g, '')}</div>`;
 }
@@ -689,6 +732,20 @@ function popup(p) {
   }
   if (!audio) NOTE.push('Bản gốc không có nhạc nền — thêm từ products/shared/music/ (cờ --music).');
 
+  // cửa bìa (configOpenDoor của bộ đại lý): 2 cánh nền gradient + ảnh, phủ màn tới khi bấm mở (StartOpenDoor)
+  let door = '';
+  {
+    const src = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
+    const m = /configOpenDoor\(\s*\{([\s\S]*?)\}\s*\)/.exec(src);
+    if (m && /StartOpenDoor\(/.test(src)) {
+      const g = (k) => { const r = new RegExp(k + '\\s*:\\s*["\'`]([^"\'`]*)["\'`]').exec(m[1]); return r ? r[1].trim() : ''; };
+      const bg = g('background') || '#fff', il = g('imageLeft') && asset(g('imageLeft')), ir = g('imageRight') && asset(g('imageRight'));
+      const panel = (side, img) => `<div class="door-p door-${side}" style="--img:${img ? `url(${img})` : 'none'}"></div>`;
+      door = `<div id="door" style="--bg:${esc(bg)}">${panel('l', il)}${panel('r', ir)}</div>`;
+      NOTE.push('Bìa có 2 cánh cửa (configOpenDoor) — đã dựng lại, mở khi bấm nút mở thiệp.');
+    }
+  }
+
   // hiệu ứng nền (effect-*) từ StyleWedding.css
   let fx = '';
   const sw = ['assets/css/StyleWedding.css'].map((f) => path.join(SRC, f)).find((f) => fs.existsSync(f));
@@ -715,6 +772,11 @@ function popup(p) {
   const kfs = [...usedAnim].map((k) => (M.keyframes[k] || '').replace(/-webkit-transform:[^;]*;\s*/g, '').replace(/\s+/g, ' ')).filter(Boolean).join('\n');
 
   const css = (list) => list.map(([sel, c]) => `${sel}{${c.join(';')}}`).join('\n');
+  // nền trang của bản gốc (body hoặc .ladi-wraper) → body
+  for (const pb of (M.pageBg || []).filter(Boolean).reverse()) {
+    const c = boxcss(pb, {}, [MW, 900]).filter((x) => !/^(border|opacity)/.test(x));
+    if (c.length) { rules.unshift(['body', c.concat(pb['background-attachment'] === 'fixed' ? ['background-attachment:fixed'] : [])]); break; }
+  }
   const tpl = fs.readFileSync(path.join(__dirname, 'base.html'), 'utf8');
   const runtime = fs.readFileSync(path.join(__dirname, 'runtime.js'), 'utf8');
   const html = tpl
@@ -728,7 +790,7 @@ function popup(p) {
     .replace('/*FX*/', () => fx + (vendor ? '\n/* ===== CSS riêng của thiệp gốc (widget, hiệu ứng) ===== */\n' + vendor : ''))
     .replace('/*KEYFRAMES*/', () => kfs)
     .replace('<!--BODY-->', () => body)
-    .replace('<!--POPUPS-->', () => pops + (audio ? '\n' + audio : ''))
+    .replace('<!--POPUPS-->', () => door + pops + (audio ? '\n' + audio : ''))
     .replace(/\{\{MW\}\}/g, () => MW).replace(/\{\{DW\}\}/g, () => DW).replace(/\{\{DW2\}\}/g, () => DW / 2)
     .replace('/*CARD*/', () => `window.CARD=${JSON.stringify({ key: KEY, mw: MW, date: DATE || null })};\nwindow.WISHES=${JSON.stringify(WISHES)};`)
     .replace('/*RUNTIME*/', () => runtime);
@@ -748,7 +810,7 @@ function popup(p) {
       // trạng thái "đã mở thiệp" cho cả 2 bản: bỏ khoá cuộn, đóng popup/phong bì, hiện mọi phần (so được toàn trang)
       await pg.evaluate(() => {
         const st = document.createElement('style');
-        st.textContent = 'html,body{overflow:visible!important;height:auto!important;position:static!important}#SECTION_POPUP .ladi-container>.ladi-element{display:none!important}.pop{display:none!important}';
+        st.textContent = 'html,body{overflow:visible!important;height:auto!important;position:static!important}#SECTION_POPUP .ladi-container>.ladi-element{display:none!important}.pop,#door,#BGcurtain{display:none!important}';
         document.head.appendChild(st);
         [document.documentElement, document.body].forEach((e) => { e.classList.remove('no-scroll', 'BGlock-scroll'); ['position', 'overflow', 'height', 'top'].forEach((k) => e.style.setProperty(k, k === 'position' ? 'static' : k === 'top' ? 'auto' : k === 'height' ? 'auto' : 'visible', 'important')); });
         document.querySelectorAll('.ladi-wraper > .ladi-section').forEach((x) => { if (getComputedStyle(x).display === 'none') x.style.setProperty('display', 'block', 'important'); });
