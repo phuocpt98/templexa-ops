@@ -4,8 +4,9 @@ Dùng khi chủ shop đưa thư mục thiệp mua quyền đại lý (vd `~/Docu
 `index.html` + `assets/`, trong code có `ladipagev4.min.js`, `ladi-section`). Mục tiêu: **giống 100% bản gốc** cả
 điện thoại lẫn máy tính, nhưng code thuần, nhẹ, không jQuery/LadiPage, ảnh WebP.
 
-Thiệp KHÔNG phải LadiPage (không có `ladi-section`, dùng `code.js`/`view.js`/`configTemplate.js` — vd SinhNhat3/4,
-ThoiNoi1–4, weddingA1) → chưa có script, AI đọc và dựng lại theo `skills/thiep` mục B.
+Thiệp dạng **builder** (có `assets/js/view.js` + `window.USER_DATA`, HTML/CSS viết tay — vd wedding23, SinhNhat3/4,
+ThoiNoi1–4, weddingA1; có thể vẫn có chữ `ladi-section` trong CSS nhưng convert.js ra "0 phần") → dùng
+`scripts/builder/port.js` (mục 4 cuối file).
 
 ## 1. Chạy script (cơ học — vài phút)
 
@@ -55,3 +56,20 @@ Script tự làm:
   trong `.countDown_customize`, chữ động LadiPage → script đã dựng lại; thấy bìa trắng/thiếu thì so `document.elementsFromPoint`
   trên bản gốc để tìm lớp do script chèn.
 - Ảnh "mở" của `shoot:mobile` có thể chồng lớp khi bìa có cửa → chụp tay: bấm nút mở, chờ ~3,5s, chụp 390×844 @2x.
+
+## 4. Thiệp dạng builder (view.js) — `scripts/builder/port.js`
+
+```bash
+node scripts/builder/port.js <thư mục> --out ../Templexa/products/Invitation/Wedding/gen_<id>_<ten> --key tpx<id> \
+     [--music <mp3>] [--map <tên ảnh từ xa>=<ảnh trong máy>]… [--css "…"] [--title "…"] [--desc "…"]
+```
+- Giữ nguyên HTML/CSS/JS gốc (đã thuần) → giống ~100%. Script chỉ thay phần dính máy chủ nhà cung cấp:
+  `php/rsvp.php`, `php/message.php`, widget ký tên `#wb-sig-root`, danh sách `#MessageBox` → `tpx-shim.js` (localStorage);
+  QR → QR Facebook Page; `EDIT_FONTS` (font trình soạn) bỏ; dữ liệu thử (`guests`, `messages`…) xoá;
+  bỏ `kyTen.js`/`readSignature.js`/`MessageBoxFunction.js` (bản cũ: lỗi cú pháp + cần jQuery).
+- Ảnh trên `builder.wedding.com` KHÔNG tải được (máy chủ chặn) → tìm ảnh thay trong `products/shared/images/`
+  rồi `--map`; cần lật/chỉnh thì `--css`. Script báo "CÒN ảnh trên máy chủ gốc" nếu sót.
+- Nhạc: bản gốc thường không có → `--music` (gắn vào `USER_DATA.music`, view.js tự dựng nút nhạc).
+- Kiểm: chụp toàn trang gốc ↔ mới (390 + 1280, sau khi bấm mở), thử mở cửa, đồng xu/QR, gửi xác nhận + lời chúc
+  (hiện trong danh sách), ký tên → Chỉnh vị trí → Lưu. Chiều cao mới = gốc + ~54px (dòng templexa.vn).
+- Giữ 2 form xác nhận + lời chúc như bản gốc (giống #315/#318).
