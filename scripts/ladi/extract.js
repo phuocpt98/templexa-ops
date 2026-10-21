@@ -72,7 +72,12 @@ module.exports = function extractInPage() {
       var t = el.querySelector('.ladi-button-headline .ladi-headline');
       o.html = t ? t.innerHTML.trim() : ''; o.st = t ? pick(t, TXT) : {};
       o.bb = pick(el.querySelector('.ladi-button-background'), BOX);
-      o.bst = pick(inner, ['border-radius', 'border-top-width', 'border-top-style', 'border-top-color', 'box-shadow']);
+      o.bst = pick(inner, ['border-radius', 'box-shadow'].concat(['top', 'right', 'bottom', 'left'].reduce(function (r, k) { return r.concat(['border-' + k + '-width', 'border-' + k + '-style', 'border-' + k + '-color']); }, [])));
+      var shp = el.querySelector('.ladi-button-shape .ladi-shape'), svg = shp && shp.querySelector('svg');
+      if (svg) {   // icon trong nút — vị trí theo % cỡ nút (dùng chung 2 khổ)
+        var br = el.getBoundingClientRect(), sr = shp.getBoundingClientRect(), pc = function (v, w) { return w ? Math.round(v / w * 1000) / 10 : 0; };
+        o.icon = { svg: svg.outerHTML, box: [pc(sr.left - br.left, br.width), pc(sr.top - br.top, br.height), pc(sr.width, br.width), pc(sr.height, br.height)] };
+      }
     } else if (type === 'ladi-box' || type === 'ladi-frame') {
       o.st = pick(inner, BOX);
       if (inner.children.length) { o.raw = inner.innerHTML; o.innerStyle = inner.getAttribute('style') || ''; }   // nội dung do script gốc chèn (đếm ngược…)
@@ -186,7 +191,7 @@ module.exports = function extractInPage() {
   var bw = document.querySelector('.ladi-wraper');
   out.pageBg = [document.body, bw].map(function (e) { return e ? pick(e, ['background-color', 'background-image', 'background-size', 'background-position', 'background-attachment']) : null; });
   out.title = document.title;
-  var vw = document.documentElement.innerHTML.match(/var e = (\d+); var f = (\d+)/);
+  var vw = document.documentElement.innerHTML.match(/var e\s*=\s*(\d+);\s*var f\s*=\s*(\d+)/);
   out.dw = vw ? +vw[1] : 960; out.mw = vw ? +vw[2] : 420;
   return out;
 };

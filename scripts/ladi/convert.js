@@ -348,6 +348,8 @@ function actions(n) {
       r.acts.forEach((x) => out.push(x));
       if (r.rest) TODO.push(`#${sid(n.id)} có script riêng khi bấm — phần chưa dịch được: \`${r.rest.slice(0, 160)}\``);
     } else if (c.a === 'link' && c.dw) out.push({ t: 'link', href: c.dw });
+    else if (c.a === 'link' && !c.dw) continue;   // link để trống trong bản gốc → không làm gì
+    else if (c.a === 'phone' && c.dw) out.push({ t: 'link', href: 'tel:' + c.dw });
     else TODO.push(`#${sid(n.id)} hành động "${c.a}" chưa hỗ trợ (${JSON.stringify(c).slice(0, 120)})`);
   }
   return out.length ? ` data-act='${JSON.stringify(out).replace(/'/g, '&#39;')}'` : '';
@@ -506,7 +508,8 @@ function emit(n) {
   if (t === 'ladi-button') {
     R(`#${s}`, n, (z) => [`background-color:${z.bb['background-color']}`].concat(boxcss(z.bb, { skipbg: true })).concat(boxcss(z.bst, { skipbg: true })));
     tdiff(n);
-    return `<div class="el btn ${tclass(n.st)}${x}${hid}" id="${s}"${a}><span>${clean(n.html)}</span></div>`;
+    const ic = n.icon ? `<i class="btn-ic" style="left:${n.icon.box[0]}%;top:${n.icon.box[1]}%;width:${n.icon.box[2]}%;height:${n.icon.box[3]}%">${n.icon.svg}</i>` : '';   // icon (ladi-button-shape)
+    return `<div class="el btn ${tclass(n.st)}${x}${hid}" id="${s}"${a}>${ic}<span>${/&nbsp;/.test(String(n.html || '').match(/^(?:&nbsp;|\s)*/)[0]) ? String(n.html).match(/^(?:&nbsp;|\s)*/)[0] : ''}${clean(n.html)}</span></div>`;   // giữ &nbsp; đầu chữ (chừa chỗ icon)
   }
   if (t === 'ladi-box' || t === 'ladi-frame') {
     R(`#${s}`, n, (z) => boxcss(z.st).concat(parseFloat(z.eop) < 1 && !z.anim ? [`opacity:${z.eop}`] : []));
