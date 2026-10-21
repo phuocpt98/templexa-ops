@@ -86,6 +86,9 @@ h = h.replace(/window\.BASE_PATH\s*=\s*'[^']*'/, "window.BASE_PATH = ''")
   .replace(/var _WB_SIG_BASE="[^"]*"/, 'var _WB_SIG_BASE=""')
   .replace(/<script[^>]*src="assets\/js\/(kyTen|readSignature|MessageBoxFunction)\.js"[^>]*><\/script>\s*/g, '')
   .replace(/<link[^>]*href="assets\/css\/kyTen\.css"[^>]*>\s*/g, (m) => (fs.existsSync(path.join(SRC, 'assets/css/kyTen.css')) ? m : ''));
+// script Cloudflare chèn lúc tải trang gốc (chống bot, beacon) — không chạy được ngoài máy chủ của họ
+h = h.replace(/<script\b[^>]*>(?:(?!<\/script>)[\s\S])*?cdn-cgi\/challenge-platform[\s\S]*?<\/script>\s*/g, '')
+  .replace(/<script\b[^>]*src="[^"]*(cdn-cgi|cloudflareinsights)[^"]*"[^>]*><\/script>\s*/g, '');
 // shim chạy TRƯỚC view.js (thay fetch trước khi view.js gắn form)
 h = h.replace(/<script src="assets\/js\/view\.js"><\/script>/, `<script>window.TPX_KEY = ${JSON.stringify(KEY)};</script>\n<script src="tpx-shim.js"></script>\n$&`);
 fs.copyFileSync(path.join(__dirname, 'tpx-shim.js'), path.join(OUT, 'tpx-shim.js'));
