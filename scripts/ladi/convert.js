@@ -536,7 +536,8 @@ function emit(n) {
   }
   if (t === 'ladi-line') {
     R(`#${s} i`, n, (z) => { const [l, tp, w, h] = z.line.box; const b = z.line.b;
-      return [`left:${px(l)}`, `top:${px(tp)}`, `width:${px(w)}`, `height:${px(h)}`].concat(['border-top', 'border-right', 'border-bottom', 'border-left'].filter((k) => !/^0px/.test(b[k])).map((k) => `${k}:${b[k]}`)); });
+      return [`left:${px(l)}`, `top:${px(tp)}`, `width:${px(w)}`, `height:${px(h)}`].concat(['border-top', 'border-right', 'border-bottom', 'border-left'].filter((k) => !/^0px/.test(b[k])).map((k) => `${k}:${b[k]}`))
+        .concat(z.line.tf ? [`transform:${z.line.tf}`, `transform-origin:${px(z.line.origin[0])} ${px(z.line.origin[1])}`] : []); });
     return `<div class="el ln${x}${hid}" id="${s}"${a}><i></i></div>`;
   }
   if (t === 'ladi-shape') return `<div class="el shape${x}${hid}" id="${s}"${a}>${n.svg.replace(/<metadata>[\s\S]*?<\/metadata>/g, '').replace(/\s+/g, ' ')}</div>`;
@@ -613,15 +614,27 @@ function popup(p) {
   return `<div class="pop${full ? ' pop-full' : ''}${drop ? ' dropbox' : ''}" id="${s}"${openAt} hidden><div class="pop-box">${bg.length ? '<div class="pop-bg"></div>' : ''}${(p.kids || []).map(emit).join('')}${full || drop ? '' : '<button class="pop-x" type="button" aria-label="Đóng">×</button>'}</div></div>\n`;
 }
 
+// thư viện của bên bán chỉ nằm trên máy chủ họ (thiep.com/librarywedding/…) → lấy bản có sẵn ở thiệp khác cùng thư mục cha
+const VENDOR = [[/ladipagev4\.min\.js/, 'assets/js/ladipagev4.min.js', 'application/javascript'], [/StyleWedding\.css/, 'assets/css/StyleWedding.css', 'text/css'], [/jquery[\d.-]*(\.min)?\.js/, 'assets/js/jquery.min.js', 'application/javascript']];
+function vendorFile(url) {
+  if (url.startsWith('http://127.0.0.1') || url.startsWith('data:')) return null;
+  const v = VENDOR.find(([re]) => re.test(url)); if (!v) return null;
+  const own = path.join(SRC, v[1]); if (fs.existsSync(own)) return [own, v[2]];
+  const par = path.dirname(SRC);
+  for (const d of fs.readdirSync(par)) { const f = path.join(par, d, v[1]); if (fs.existsSync(f)) { if (!vendorFile.noted) { NOTE.push('Thư viện LadiPage nằm trên máy chủ bên bán — đã dùng bản có sẵn ở thiệp khác để đo.'); vendorFile.noted = true; } return [f, v[2]]; } }
+  return null;
+}
+const routeReq = (r, allow) => { const v = vendorFile(r.url()); if (v) return r.respond({ status: 200, contentType: v[1], body: fs.readFileSync(v[0]) }); return allow(r.url()) ? r.continue() : r.abort(); };
+
 // ---------------------------------------------------------------- chạy
 (async () => {
   const srv = await serve(SRC);
   const base = `http://127.0.0.1:${srv.address().port}/index.html`;
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ headless: 'shell', args: ['--no-sandbox'] });
   const measure = async (w, h) => {
     const pg = await browser.newPage();
     await pg.setRequestInterception(true);
-    pg.on('request', (r) => (r.url().startsWith('http://127.0.0.1') || r.url().startsWith('data:') ? r.continue() : r.abort()).catch(() => {}));
+    pg.on('request', (r) => Promise.resolve(routeReq(r, (u) => u.startsWith('http://127.0.0.1') || u.startsWith('data:'))).catch(() => {}));
     await pg.setViewport({ width: w, height: h });
     await pg.goto(base, { waitUntil: 'networkidle2', timeout: 90000 }).catch(() => {});
     await new Promise((r) => setTimeout(r, 1500));
@@ -756,7 +769,7 @@ function popup(p) {
 
   // hiệu ứng nền (effect-*) từ StyleWedding.css
   let fx = '';
-  const sw = ['assets/css/StyleWedding.css'].map((f) => path.join(SRC, f)).find((f) => fs.existsSync(f));
+  const sw = ['assets/css/StyleWedding.css'].map((f) => path.join(SRC, f)).find((f) => fs.existsSync(f)) || (/StyleWedding\.css/.test(fs.readFileSync(path.join(SRC, 'index.html'), 'utf8')) && (vendorFile('https://x/StyleWedding.css') || [])[0]);
   if (sw) {
     const css = fs.readFileSync(sw, 'utf8');
     const used = new Set(); body.replace(/fx-([\w-]+)/g, (m, k) => used.add(k));
@@ -812,7 +825,7 @@ function popup(p) {
     const outUrl = `http://127.0.0.1:${srvOut.address().port}/` + path.relative(TEMPLEXA, path.join(OUT, 'index.html')).split(path.sep).map(encodeURIComponent).join('/');
     const shot = async (url, w, h, file, local) => {
       const pg = await browser.newPage();
-      if (local) { await pg.setRequestInterception(true); pg.on('request', (r) => (/^(http:\/\/127\.0\.0\.1|data:)/.test(r.url()) || /fonts\.(googleapis|gstatic)/.test(r.url()) ? r.continue() : r.abort()).catch(() => {})); }
+      if (local) { await pg.setRequestInterception(true); pg.on('request', (r) => Promise.resolve(routeReq(r, (u) => /^(http:\/\/127\.0\.0\.1|data:)/.test(u) || /fonts\.(googleapis|gstatic)/.test(u))).catch(() => {})); }
       await pg.setViewport({ width: w, height: h });
       await pg.goto(url, { waitUntil: 'networkidle2', timeout: 90000 }).catch(() => {});
       // trạng thái "đã mở thiệp" cho cả 2 bản: bỏ khoá cuộn, đóng popup/phong bì, hiện mọi phần (so được toàn trang)

@@ -95,9 +95,15 @@ module.exports = function extractInPage() {
         viewSt: pick(gv, ['border-radius', 'background-size', 'background-color']), thumbSt: pick(inner.querySelector('.ladi-gallery-control-item'), ['border-radius', 'border-top-width', 'border-top-color', 'border-top-style']),
         itemSize: gv && inner.querySelector('.ladi-gallery-view-item') ? getComputedStyle(inner.querySelector('.ladi-gallery-view-item')).backgroundSize : 'cover' };
     } else if (type === 'ladi-line') {
-      var lc = inner.querySelector('.ladi-line-container'), er = el.getBoundingClientRect(), lr = lc.getBoundingClientRect();
+      // đo hình học CHƯA xoay (đường chéo = đường ngang xoay bằng transform trên .ladi-line), lưu góc xoay riêng
+      var lc = inner.querySelector('.ladi-line-container'), er = el.getBoundingClientRect();
+      var ltf = getComputedStyle(inner).transform, oldTf = inner.style.transform;
+      inner.style.setProperty('transform', 'none', 'important');
+      var lr = lc.getBoundingClientRect(), ir = inner.getBoundingClientRect();
+      inner.style.transform = oldTf;
       o.line = { box: [lr.left - er.left, lr.top - er.top, lr.width, lr.height],
         b: pick(lc, ['border-top', 'border-right', 'border-bottom', 'border-left']) };
+      if (ltf && ltf !== 'none') { o.line.tf = ltf; o.line.origin = [ir.left + ir.width / 2 - lr.left, ir.top + ir.height / 2 - lr.top]; }
     } else if (type === 'ladi-shape') {
       o.svg = inner.innerHTML.trim();
     } else if (type === 'ladi-countdown') {
