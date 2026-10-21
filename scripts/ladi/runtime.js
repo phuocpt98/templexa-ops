@@ -282,7 +282,13 @@
       for (var i = 0; i < acts.length; i++) {
         var a = acts[i];
         if ((a.on || 'click') !== on) continue;
-        if (a.t === 'fn' && FN[a.fn] && FN[a.fn]() === false) break;
+        if (a.ms && !a._d) { setTimeout(function (x) { x._d = true; doAct(x, leave); x._d = false; }.bind(null, a), a.ms); continue; }
+        if (doAct(a, leave) === false) break;
+      }
+    };
+    var doAct = function (a, leave) {
+      {
+        if (a.t === 'fn' && FN[a.fn] && FN[a.fn]() === false) return false;
         if (a.t === 'popup') openPop(a.id);
         if (a.t === 'collapse') toggleCollapse(a.id);
         if (a.t === 'toggle') { var x = document.getElementById(a.id); if (x) x.classList.toggle('open'); }
@@ -297,6 +303,8 @@
         }
         if (a.t === 'dropbox') dropbox(a.id, el, a.at);
         if (a.t === 'hideLater') setTimeout(function (sel) { $$(sel).forEach(function (h) { h.style.display = 'none'; }); }.bind(null, a.sel), a.ms);
+        if (a.t === 'hideSel') $$(a.sel).forEach(function (h) { h.style.display = 'none'; });
+        if (a.t === 'showSel') $$(a.sel).forEach(function (h) { h.style.display = ''; });
         if (a.t === 'link') location.href = a.href;
       }
     };

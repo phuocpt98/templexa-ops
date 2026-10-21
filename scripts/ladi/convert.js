@@ -114,7 +114,13 @@ function variant(rel, box) {
   const big = same.find((c) => c.w >= box[0] * 1.5) || same[same.length - 1];
   return path.join(dir, big.f).replace(/\\/g, '/');
 }
+const REMOTE = new Map();   // url ngoài → tên file trong images/
 function asset(u, sub, box) {
+  const raw = (String(u).match(/url\("?(.*?)"?\)/) || [, u])[1];
+  if (/^https?:\/\//.test(raw) && !/127\.0\.0\.1|localhost/.test(raw) && /\.(jpe?g|png|webp|gif)(\?|$)/i.test(raw)) {
+    if (!REMOTE.has(raw)) { let name = cleanName(raw.split('?')[0]) + '.webp'; while (USED.has(name)) name = name.replace(/(-\d+)?\.webp$/, (m, k) => `-${k ? 1 - parseInt(k) : 2}.webp`); USED.add(name); REMOTE.set(raw, name); }
+    return 'images/' + REMOTE.get(raw);
+  }
   let rel = urlToRel(u);
   if (!rel) return null;
   if (TPX && /qr/i.test(path.basename(rel)) && fs.existsSync(QR_FB)) {   // QR của bên bán gốc → QR Facebook Page Templexa
@@ -143,6 +149,13 @@ function asset(u, sub, box) {
   return out;
 }
 async function writeAssets() {
+  for (const [url, name] of REMOTE) {   // ảnh bản gốc để ở máy chủ ảnh ngoài (agy không tải về)
+    try {
+      const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status);
+      await sharp(Buffer.from(await r.arrayBuffer())).resize({ width: 1400, withoutEnlargement: true }).webp({ quality: 82 }).toFile(path.join(OUT, 'images', name));
+      NOTE.push(`Ảnh ở máy chủ ngoài đã tải về: ${url} → images/${name}`);
+    } catch (e) { NOTE.push(`Không tải được ảnh ngoài ${url}: ${e.message}`); }
+  }
   for (const [name, { rel }] of pending) {
     const src = path.join(SRC, rel), dst = path.join(OUT, 'images', name);
     fs.mkdirSync(path.dirname(dst), { recursive: true });
@@ -255,10 +268,33 @@ function fixedCss(n) {
 let SECNAME = {};
 const idOf = (x) => SECNAME[x] || sid(x);
 const TARGETS = new Set();   // phần tử là đích của nút ẩn/hiện
+// Dịch script jQuery ngắn hay gặp trong thiệp đại lý → hành động (có trễ ms). Phần không hiểu trả về `rest`.
+function parseScript(src, base = 0) {
+  let t = src.replace(/&#34;/g, '"').replace(/&#39;/g, "'").replace(/&#62;/g, '>').replace(/&#60;/g, '<').replace(/&#123;/g, '{').replace(/&#125;/g, '}');
+  const acts = [];
+  const Q = `["']`;
+  // setTimeout(() => { … }, N)  (lồng 1 cấp)
+  t = t.replace(/setTimeout\(\s*(?:\(\)\s*=>|function\s*\(\)\s*)\s*\{([\s\S]*?)\}\s*,\s*(\d+)\s*\)\s*;?/g, (m, body, ms) => {
+    const r = parseScript(body, base + +ms); acts.push(...r.acts); return r.rest ? ' ' + r.rest + ' ' : ' ';
+  });
+  const rules = [
+    [new RegExp(`\\$\\(${Q}#([\\w-]+)${Q}\\)\\.(show|hide)\\(\\)`, 'g'), (m, id, k) => ({ t: k, ids: [idOf(id)] })],
+    [new RegExp(`\\$\\(${Q}#([\\w-]+)${Q}\\)\\.attr\\(\\s*${Q}style${Q}\\s*,\\s*${Q}\\s*display:\\s*(block|flex|none)[^"']*${Q}\\s*\\)`, 'g'), (m, id, d) => ({ t: d === 'none' ? 'hide' : 'show', ids: [idOf(id)] })],
+    [new RegExp(`\\$\\(${Q}#([\\w-]+)${Q}\\)\\.css\\(\\s*${Q}display${Q}\\s*,\\s*${Q}(block|flex|none)${Q}\\s*\\)`, 'g'), (m, id, d) => ({ t: d === 'none' ? 'hide' : 'show', ids: [idOf(id)] })],
+    [new RegExp(`document\\.getElementById\\(${Q}([\\w-]+)${Q}\\)\\??\\.scrollIntoView\\([^)]*\\)`, 'g'), (m, id) => ({ t: 'section', id: idOf(id) })],
+    [new RegExp(`\\$\\(${Q}(\\.[\\w-]+)${Q}\\)\\.(hide|show)\\(\\)`, 'g'), (m, sel, k) => ({ t: k === 'hide' ? 'hideSel' : 'showSel', sel })],
+    [new RegExp(`\\$\\(${Q}#POPUP\\d+${Q}\\)\\.css\\([^)]*\\)`, 'g'), () => null],   // popup phủ màn — đã xử lý chung
+    [/handleOpenDoor\(\)/g, () => null],                                                    // hàm không có trong bản gốc
+  ];
+  for (const [rx, fn] of rules) t = t.replace(rx, (...a) => { const x = fn(...a); if (x) acts.push(base ? Object.assign(x, { ms: base }) : x); return ' '; });
+  const rest = t.replace(/\/\/[^\n]*/g, '').replace(/[;\s]+/g, ' ').trim();
+  return { acts, rest };
+}
 function actions(n) {
   const cs = n.ev && n.ev.cs; if (!cs) return '';
   const out = [];
   for (const c of cs) {
+    if (!c.a) continue;   // hành động rỗng của LadiPage
     if (c.a === 'popup' && c.dw) out.push({ t: 'popup', id: sid(c.dw) });
     else if (c.a === 'collapse' && c.dw) out.push({ t: 'collapse', id: sid(c.dw) });
     else if (c.a === 'hidden_show' && c.dw) out.push({ t: 'toggle', id: sid(c.dw) });
@@ -272,18 +308,13 @@ function actions(n) {
     else if (c.a === 'dropbox' && c.dw) out.push({ t: 'dropbox', id: sid(c.dw), at: (c.dO && c.dO.dt) || 'bottom_left' });
     else if (c.a === 'section' && c.dw) out.push({ t: 'section', id: SECNAME[c.dw] || sid(c.dw) });
     else if (c.a === 'custom_script') {
-      const s = c.event_custom_script || '';
-      const later = s.match(/setTimeout\(\s*\(\)\s*=(?:&#62;|>)\s*(?:&#123;|\{)?\s*\$\((?:&#34;|")([.#][\w-]+)(?:&#34;|")\)\.hide\(\)\s*(?:&#125;|\})?\s*,\s*(\d+)\)/);
-      if (later) { out.push({ t: 'hideLater', sel: later[1], ms: +later[2] }); continue; }
-      const sh = [...s.matchAll(/\$\((?:&#34;|")#([A-Za-z0-9_]+)(?:&#34;|")\)\.(show|hide)\(\)/g)];
-      if (sh.length && s.replace(/\$\((?:&#34;|")#[A-Za-z0-9_]+(?:&#34;|")\)\.(show|hide)\(\);?/g, '').trim() === '') {
-        sh.forEach((m) => out.push({ t: m[2], ids: [idOf(m[1])] })); continue;
-      }
-      if (/\.css\((?:&#34;|")height(?:&#34;|")\s*,\s*(?:&#34;|")100%/.test(s) || /scrollIntoView/.test(s)) continue;   // popup phủ màn / cuộn — đã xử lý chung
-      if (/clearCanvas/.test(s)) out.push({ t: 'fn', fn: 'sig.clear' });
-      else if (/previewSignature/.test(s)) out.push({ t: 'fn', fn: 'sig.preview' });
-      else if (/saveSignature/.test(s)) out.push({ t: 'fn', fn: 'sig.save' });
-      else TODO.push(`#${sid(n.id)} có script riêng khi bấm — viết lại: \`${s.replace(/\s+/g, ' ').slice(0, 160)}\``);
+      const src = c.event_custom_script || '';
+      if (/clearCanvas/.test(src)) { out.push({ t: 'fn', fn: 'sig.clear' }); continue; }
+      if (/previewSignature/.test(src)) { out.push({ t: 'fn', fn: 'sig.preview' }); continue; }
+      if (/saveSignature/.test(src)) { out.push({ t: 'fn', fn: 'sig.save' }); continue; }
+      const r = parseScript(src);
+      r.acts.forEach((x) => out.push(x));
+      if (r.rest) TODO.push(`#${sid(n.id)} có script riêng khi bấm — phần chưa dịch được: \`${r.rest.slice(0, 160)}\``);
     } else if (c.a === 'link' && c.dw) out.push({ t: 'link', href: c.dw });
     else TODO.push(`#${sid(n.id)} hành động "${c.a}" chưa hỗ trợ (${JSON.stringify(c).slice(0, 120)})`);
   }
@@ -759,7 +790,14 @@ function popup(p) {
     srvOut.close();
     if (TPX) {
       const dm = path.join(WORK, 'compare', 'desktop-moi.png'); const meta = await sharp(dm).metadata();
-      await sharp(dm).extract({ left: Math.max(0, Math.round((meta.width - 1200) / 2)), top: 0, width: Math.min(1200, meta.width), height: Math.min(630, meta.height) })
+      // chọn vùng 1200×630 "nhiều hình" nhất trong 3000px đầu (bỏ qua nền trống sau phong bì)
+      let bestY = 0, bestS = -1;
+      for (let y = 0; y + 630 <= Math.min(meta.height, 6000); y += 150) {
+        const st = await sharp(dm).extract({ left: Math.max(0, Math.round((meta.width - 1200) / 2)), top: y, width: Math.min(1200, meta.width), height: 630 }).stats();
+        const sc = st.channels.slice(0, 3).reduce((a, c) => a + c.stdev, 0);
+        if (sc > bestS * 1.15) { bestS = sc; bestY = y; }
+      }
+      await sharp(dm).extract({ left: Math.max(0, Math.round((meta.width - 1200) / 2)), top: bestY, width: Math.min(1200, meta.width), height: Math.min(630, meta.height) })
         .resize(1200, 630, { fit: 'cover' }).jpeg({ quality: 86 }).toFile(path.join(OUT, 'og-cover.jpg'));
       NOTE.push('og-cover.jpg cắt từ đầu trang khổ máy tính — mở xem có đủ mặt + tên không.');
     }
