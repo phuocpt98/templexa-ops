@@ -42,6 +42,8 @@ Script tự làm:
 - Theo luật Templexa: 1 nút "Gửi lời chúc & xác nhận", dòng `templexa.vn` cuối thiệp, `<title>`/description/og:image.
 - Thêm vào catalog: `node scripts/catalog.js …` (data.js), chụp ảnh `shoot.js`, `og-cover.jpg` 1200×630 (cắt từ bìa khổ máy tính
   thường đủ mặt + tên).
+- Sau khi thêm entry: trong `Templexa/` chạy `npm run build:landing && npm run build:og-pid && npm run build:sitemap && npm run build:products-md`
+  (`build:og-pid` để link `?pid=` chia sẻ lên Facebook/Zalo hiện đúng ảnh mẫu).
 
 ## Kinh nghiệm (từ #314 và thử wedding2/wedding4)
 - LadiPage giấu phần tử chờ hiệu ứng (`ladi-animation-hidden`, opacity 0) và nạp ảnh chậm (`lazyload`) → script bỏ cả 2
