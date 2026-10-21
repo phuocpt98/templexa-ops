@@ -16,6 +16,7 @@ templexa-ops/
 │   ├── 10-tao-thiep.md      nhánh git → clone/new → ảnh → đổi nội dung → chụp kiểm → xem thử
 │   ├── 15-tao-anh.md        Muse tự tạo ảnh/video: thông số, prompt mẫu, tách nền bằng cut-icons.js
 │   ├── 16-chuyen-thiep-ladi.md  thiệp đại lý LadiPage → mẫu Templexa thuần (scripts/ladi/convert.js + REPORT cho AI)
+│   ├── 17-tao-slide.md      slide cưới trình chiếu bằng HTML thay video (skill slide-cuoi): hỏi riêng · dựng · giao link + bản offline
 │   ├── 20-sua-thiep.md      góp ý qua trang sua-thiep.html → feedback.md → sửa → duyệt
 │   ├── 30-xuat-ban.md       ảnh share → link khách → QR → catalog → duyệt → lên templexa.vn · thứ tự catalog
 │   └── 90-dong-job.md       lưu trữ, xoá ảnh gốc
@@ -23,6 +24,11 @@ templexa-ops/
 ├── skills/thiep/        ← 1 skill cho mọi loại thiệp (thay 7 skill gen-* cũ)
 │   ├── SKILL.md             A. theo mẫu · B. thiết kế mới · C. danh sách khách · D. sửa · luật cứng · checklist
 │   └── refs/                tài liệu thiết kế + bài học (wedding-*.md), profiles/ cho bé/sinh nhật/kỷ niệm, legacy-*.md
+│
+├── skills/slide-cuoi/   ← slide cưới trình chiếu HTML thay video (flows/17)
+│   ├── SKILL.md             cấu trúc slide · thông số 16:9 · điều khiển chiếu · font tự chứa · giao khách
+│   ├── refs/                nghiên cứu thị trường: mẫu "ảnh cuộn" bán chạy trên TikTok
+│   └── demo/                gen_slide_01_anh-cuon-trang-kem — mẫu chạy được (1 file HTML + photos/fonts/nhạc)
 │
 ├── video-mau-thiep/     ← quay video dọc giới thiệu mẫu thiệp: SKILL.md · kich-ban/<id>.json · quay.js · nen/ · font-cache/
 │

@@ -45,8 +45,9 @@ Cần sửa phần KHÔNG được sửa → dừng, ghi vào `feedback.md` củ
 - Báo kết quả cho user bằng: link xem thử + ảnh chụp (`shots/open.webp`) + việc còn chờ. Không dán code.
 
 ## 6. Bản đồ file
-- `flows/` — các bước làm việc (đọc theo số thứ tự): 00 nhận việc · 01 hỏi thông tin · 10 dựng thiệp · 15 tự tạo ảnh/video · 16 chuyển thiệp đại lý LadiPage (`scripts/ladi/convert.js`) · 20 sửa theo góp ý · 30 xuất bản · 90 đóng job
+- `flows/` — các bước làm việc (đọc theo số thứ tự): 00 nhận việc · 01 hỏi thông tin · 10 dựng thiệp · 15 tự tạo ảnh/video · 16 chuyển thiệp đại lý LadiPage (`scripts/ladi/convert.js`) · 17 tạo slide cưới trình chiếu HTML · 20 sửa theo góp ý · 30 xuất bản · 90 đóng job
 - `skills/thiep/SKILL.md` — cách dựng / sửa nội dung thiệp
+- `skills/slide-cuoi/SKILL.md` — dựng slide cưới trình chiếu bằng HTML thay file video (flows/17; kèm demo chạy được + `refs/` nghiên cứu thị trường)
 - `video-mau-thiep/SKILL.md` — quay video dọc giới thiệu mẫu thiệp (Reels/TikTok/Page): kịch bản `kich-ban/<id>.json` → `node video-mau-thiep/quay.js <id> --hd`
 - `scripts/` — lệnh có sẵn; cách dùng ghi ở đầu mỗi file (job.js / catalog.js chạy không tham số sẽ in hướng dẫn)
 - `jobs/JOBS.md` — mục lục job (tự sinh) · `jobs/<job>/` — job.json, input/, log.md, feedback.md, photos.md
