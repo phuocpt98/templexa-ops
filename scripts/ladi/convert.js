@@ -460,7 +460,7 @@ function form(n) {
       if (TPX) label = /[a-zà-ỹ]/.test(label.replace(/<[^>]+>/g, '')) ? 'Gửi lời chúc &amp; xác nhận' : 'GỬI LỜI CHÚC &amp; XÁC NHẬN';   // luật Templexa: 1 nút
       html += `<button type="submit" class="f-btn ${tclass(it.st)}" id="${fs_}"><span>${label}</span></button>`;
     } else {
-      rules.push([`#${fs_}`, c.concat(boxcss(it.bg))]);
+      rules.push([`#${fs_}`, c.concat(boxcss(it.bg)).concat(it.cst && parseFloat(it.cst['border-top-width']) > 0 ? [`border:${it.cst['border-top-width']} ${it.cst['border-top-style']} ${it.cst['border-top-color']}`, `border-radius:${it.cst['border-radius']}`] : [])]);
       if (it.st && it.st['font-size']) rules.push([`#${fs_} .f-ctl,#${fs_} label`, [`font-size:${it.st['font-size']}`, `color:${it.st.color}`, `font-family:${it.st['font-family']}`]]);
       const inner = it.html
         .replace(/class="[^"]*ladi-form-control[^"]*"/g, 'class="f-ctl"')
@@ -636,7 +636,12 @@ function popup(p) {
   for (const p of D.popups) { DMAP[p.id] = p; for (const n of walk(p.kids || [])) DMAP[n.id] = n; }
   const DSEC = {}; D.sections.forEach((x) => { DSEC[x.id] = x; });
   Object.values(M.eventData || {}).forEach((e) => (e.cs || []).forEach((c) => { if (['collapse', 'hidden_show'].includes(c.a) && c.dw) TARGETS.add(c.dw); }));
-  const visible = M.sections;   // gồm cả phần ẩn sẵn (hiện khi bấm nút)
+  // gồm cả phần ẩn sẵn (hiện khi bấm nút); phần ẩn ở CẢ 2 khổ mà không thao tác/script nào nhắc tới → người xem không
+  // bao giờ thấy (vd "Selfie cùng chúng mình" của wedding4) → bỏ
+  const evTxt = JSON.stringify(M.eventData || {});
+  const dead = M.sections.filter((x) => x.disp === 'none' && (!DSEC[x.id] || DSEC[x.id].disp === 'none') && !evTxt.includes(`"${x.id}"`) && !evTxt.includes(x.id + '\\"') && !new RegExp(x.id + '\\b').test(evTxt));
+  if (dead.length) NOTE.push(`Bỏ ${dead.length} phần luôn ẩn, không nút nào mở: ${dead.map((x) => x.id).join(', ')}.`);
+  const visible = M.sections.filter((x) => !dead.includes(x));
   if (!DATE) {   // tự tìm ngày cưới trong chữ của thiệp (ngày xuất hiện nhiều nhất) cho đếm ngược
     const all = []; const tw0 = (ns) => ns.forEach((k) => { if (k.html) all.push(k.html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')); if (k.kids) tw0(k.kids); });
     visible.forEach((x, i) => { const n0 = all.length; tw0(x.kids); if (i < 2) for (let k = n0; k < all.length; k++) all[k] = (all[k] + ' | ').repeat(3); });   // ngày ở bìa nặng gấp 3
@@ -808,14 +813,15 @@ function popup(p) {
       await pg.setViewport({ width: w, height: h });
       await pg.goto(url, { waitUntil: 'networkidle2', timeout: 90000 }).catch(() => {});
       // trạng thái "đã mở thiệp" cho cả 2 bản: bỏ khoá cuộn, đóng popup/phong bì, hiện mọi phần (so được toàn trang)
-      await pg.evaluate(() => {
+      await pg.evaluate((deadIds) => {
+        deadIds.forEach((id) => { const x = document.getElementById(id); if (x) x.remove(); });   // phần đã bỏ (luôn ẩn) — không ép hiện ở bản gốc
         const st = document.createElement('style');
         st.textContent = 'html,body{overflow:visible!important;height:auto!important;position:static!important}#SECTION_POPUP .ladi-container>.ladi-element{display:none!important}.pop,#door,#BGcurtain{display:none!important}';
         document.head.appendChild(st);
         [document.documentElement, document.body].forEach((e) => { e.classList.remove('no-scroll', 'BGlock-scroll'); ['position', 'overflow', 'height', 'top'].forEach((k) => e.style.setProperty(k, k === 'position' ? 'static' : k === 'top' ? 'auto' : k === 'height' ? 'auto' : 'visible', 'important')); });
         document.querySelectorAll('.ladi-wraper > .ladi-section').forEach((x) => { if (getComputedStyle(x).display === 'none') x.style.setProperty('display', 'block', 'important'); });
         document.querySelectorAll('.sec').forEach((x) => { if (getComputedStyle(x).display === 'none') x.style.setProperty('display', 'block', 'important'); });
-      });
+      }, dead.map((x) => x.id));
       await new Promise((r) => setTimeout(r, 600));
       const H = await pg.evaluate(() => document.documentElement.scrollHeight);
       for (let y = 0; y < H; y += 300) { await pg.evaluate((v) => scrollTo(0, v), y); await new Promise((r) => setTimeout(r, 120)); }

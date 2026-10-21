@@ -116,6 +116,8 @@ module.exports = function extractInPage() {
           var ctl = it.querySelector('.ladi-form-control, .ladi-form-checkbox, input, select, textarea');
           r.html = (it.querySelector('.ladi-form-item') || it).innerHTML.replace(/<script[\s\S]*?<\/script>/g, '').trim();
           r.bg = pick(it.querySelector('.ladi-form-item-background'), BOX);
+          var fc = it.querySelector('.ladi-form-item-container');   // viền ô nhập nằm ở khung này, nền ở -background
+          if (fc) r.cst = pick(fc, ['border-radius', 'border-top-width', 'border-top-style', 'border-top-color']);
           r.st = pick(ctl, ['font-family', 'font-size', 'color', 'padding-left', 'padding-top', 'line-height']);
         }
         return r;
