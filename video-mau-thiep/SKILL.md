@@ -106,3 +106,7 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 ## Ảnh nền sân khấu — đa dạng bối cảnh (user dặn 21/10)
 
 Đừng video nào cũng nền hoa lá flatlay. Bối cảnh được SÁNG TẠO tự do — trong phòng, trên giường, trên mây có hoa, quán cà phê, bãi biển... — không cần ý nghĩa, CHỈ CẦN ĐẸP và giữa khung đủ trống êm để điện thoại nổi bật. Xoay vòng giữa các nền, thiếu style thì gen thêm nền mới vào `nen/`. Hiện có thêm: `phong-cuoi-am.jpg` (góc phòng rèm trắng, nến + hồng), `giuong-trang-hoa.jpg` (giường trắng rải cánh hoa), `may-troi-hoa.jpg` (trời mây pastel, hoa anh đào).
+
+## RAM khi quay (user dặn 21/10)
+
+Máy ảo yếu (8GB): TRƯỚC KHI QUAY phải đóng mọi cửa sổ trình duyệt cloud đang mở để dồn RAM cho Chrome quay — trình duyệt treo mở là một nguyên nhân quay gãy đoạn/timeout. Quay xong không tự mở lại trình duyệt.
