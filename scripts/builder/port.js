@@ -70,6 +70,10 @@ for (const k of Object.keys(ud.images || {})) if (/QR/i.test(k)) ud.images[k].ur
 ['guests', 'guest_notes', 'messages', 'rsvpList'].forEach((k) => { if (Array.isArray(ud[k])) ud[k] = []; });
 // ---- nhạc
 const music = opt('--music');
+// nhạc của bản gốc nằm trên máy chủ nhà cung cấp (/image/_shared_music/…) → không phát được → bỏ, dùng --music
+const localSong = (u) => u && !/^(https?:)?\/\//.test(u) && !u.startsWith('/') && fs.existsSync(path.join(SRC, u.split('?')[0]));
+const deadSongs = (ud.musicPlaylist || []).filter((x) => !localSong(x.url)).length + (ud.music && !localSong(ud.music) ? 1 : 0);
+if (deadSongs) { ud.musicPlaylist = (ud.musicPlaylist || []).filter((x) => localSong(x.url)); if (ud.music && !localSong(ud.music)) delete ud.music; NOTE.push(`Bỏ ${deadSongs} bài nhạc nằm trên máy chủ gốc (không phát được).`); }
 if (music && !(ud.musicPlaylist || []).length && !ud.music) {
   ud.music = rel(path.resolve(music)).split('/').map(encodeURIComponent).join('/').replace(/%2E%2E/g, '..');
   NOTE.push('Bản gốc không có nhạc — đã gắn ' + path.basename(music));
