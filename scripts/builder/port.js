@@ -113,7 +113,7 @@ h = h.replace('</head>', `<style id="tpx-style">\n${extraCss}\n</style>\n</head>
 const copy = (r) => { const a = path.join(SRC, r), b = path.join(OUT, r); fs.mkdirSync(path.dirname(b), { recursive: true }); fs.copyFileSync(a, b); };
 const ls = (d) => (fs.existsSync(path.join(SRC, d)) ? fs.readdirSync(path.join(SRC, d)) : []);
 ls('assets/css').forEach((f) => { if (f !== 'kyTen.css' || h.includes('kyTen.css')) copy('assets/css/' + f); });
-ls('assets/js').filter((f) => !/^(kyTen|readSignature|MessageBoxFunction)\.js$/.test(f)).forEach((f) => copy('assets/js/' + f));
+ls('assets/js').filter((f) => h.includes('assets/js/' + f)).forEach((f) => copy('assets/js/' + f));   // chỉ file trang thật sự nạp (bỏ ladipagev4/jquery thừa)
 const cssAll = ls('assets/css').map((f) => fs.readFileSync(path.join(SRC, 'assets/css', f), 'utf8')).join('\n');
 const used = (name) => h.includes(name) || cssAll.includes(name);
 let nImg = 0, nFont = 0, skipped = 0;
