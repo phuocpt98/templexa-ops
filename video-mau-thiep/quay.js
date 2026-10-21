@@ -275,16 +275,20 @@ async function runSegment(state, from, to) {
     const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     const scrollTo = async (findSrc, ms) => {
       const [y0, y1] = await frame.evaluate((src) => {
-        const max = document.documentElement.scrollHeight - innerHeight;
-        if (!src) return [scrollY, 0]; // null = về đầu trang
+        // Mẫu cuộn bằng body (vd gen_198) thì window.scrollTo vô hiệu — tự chọn phần tử cuộn thật.
+        const de = document.documentElement, bd = document.body;
+        const sc = (bd && bd.scrollHeight - bd.clientHeight > de.scrollHeight - de.clientHeight) ? bd : de;
+        const cur = sc.scrollTop;
+        const max = sc.scrollHeight - sc.clientHeight;
+        if (!src) return [cur, 0]; // null = về đầu trang
         const el = (0, eval)(src)();
-        const to = el ? el.getBoundingClientRect().top + scrollY - 40 : scrollY;
-        return [scrollY, Math.max(0, Math.min(max, to))];
+        const to = el ? el.getBoundingClientRect().top + cur - 40 : cur;
+        return [cur, Math.max(0, Math.min(max, to))];
       }, findSrc);
       const steps = Math.round(ms / DT);
       for (let i = 1; i <= steps; i++) {
         if (n >= to) throw STOP;
-        await frame.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), y0 + (y1 - y0) * ease(i / steps));
+        await frame.evaluate((y) => { const de = document.documentElement, bd = document.body; const sc = (bd && bd.scrollHeight - bd.clientHeight > de.scrollHeight - de.clientHeight) ? bd : de; sc.scrollTo({ top: y, behavior: 'instant' }); }, y0 + (y1 - y0) * ease(i / steps));
         await step();
       }
     };
@@ -350,7 +354,7 @@ async function runSegment(state, from, to) {
     if (CFG.nhac) ff.push('-i', path.join(OPS_ROOT, CFG.nhac).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA),
       '-af', `adelay=${delay}|${delay},volume=0.5,afade=t=out:st=${Math.max(0, dur - 2.5).toFixed(2)}:d=2.5`,
       '-c:a', 'aac', '-b:a', '160k', '-shortest');
-    ff.push('-vf', 'scale=1080:1920:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'medium', '-crf', '17',
+    ff.push('-vf', 'scale=1080:1920:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'medium', '-b:v', '10M', '-maxrate', '12M', '-bufsize', '20M',
       '-profile:v', 'high', '-threads', '2', '-r', String(FPS), '-movflags', '+faststart', out);
     log('Ghep video + nhac...');
     execFileSync('ffmpeg', ff, { stdio: 'pipe' });

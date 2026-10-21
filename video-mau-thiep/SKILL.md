@@ -37,12 +37,14 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
      trên máy có mạng và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
    - Trước khi gửi duyệt: trích 6–8 khung (`ffmpeg -ss <giây> -i video/<id>.mp4 -frames:v 1 x.png`) mở xem —
      đúng font, đúng mục, chữ nét, màn kết đủ chữ.
-4. **Ghi mục lục**: thêm dòng vào `muc-luc.md` (ngày, mẫu, nền, video, trạng thái "chờ duyệt").
-5. **Duyệt & đăng**: user duyệt video → đăng Page bằng connector facebook → cập nhật mục lục "đã đăng + link".
+4. **Ghi mục lục + lên Drive**: thêm dòng vào `muc-luc.md` (ngày, mẫu, nền, video, trạng thái "chờ duyệt"),
+   tải video vào thư mục Drive **"video thiệp"** (https://drive.google.com/drive/folders/1gLuYo8xbVTaYrNQszrR29qLcORLp4Utm) để user duyệt/lấy dùng.
+5. **Duyệt & đăng**: user duyệt video → đăng Page "Thiệp online Templexa" dạng Reel bằng connector facebook
+   (dùng chính file master ~10 Mbps — Facebook nén từ nguồn giàu dữ liệu sẽ nét hơn) → cập nhật mục lục "đã đăng + link".
 
 ## Thông số chuẩn
 
-- Video: 1080×1920, 30 khung/giây (đổi bằng `--fps 24` nếu cần), mp4 (H.264 crf 17 + AAC), 25–30 giây. Bản đăng luôn quay `--hd`.
+- Video: 1080×1920, 30 khung/giây (đổi bằng `--fps 24` nếu cần), mp4 (H.264 đích **~10 Mbps** + AAC 160k — chủ shop chốt 21/10: master giàu dữ liệu, nét hơn hẳn mức ~3,5 Mbps của bản crf cũ khi đăng Facebook/Drive), 25–30 giây. Bản đăng luôn quay `--hd`.
 - Điện thoại trên sân khấu: nghiêng nhẹ ~4°, có đổ bóng, bo góc.
 - Màn kết: thiệp cuộn về phần mở đầu, chữ TEMPLEXA + templexa.vn + câu giới thiệu hiện **đè lên hình trong 2 giây** (không chuyển sang nền tối).
 - Dấu ấn **templexa.vn hiện đúng 1 chỗ** trên nền sân khấu; vị trí chọn theo từng nền (góc trên-trái / trên-phải / dưới-trái / dưới-phải / giữa-dưới), đặt ở `"viTriWeb"` trong `kich-ban/<id>.json`.
@@ -93,6 +95,8 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 - **Đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
   vd gen_269: `#collage` là cảnh hero ở ĐẦU trang. Đo bằng `getBoundingClientRect().top + scrollY` sau khi mở thiệp.
 - Bấm nút trong thiệp bằng `el.click()` trong iframe (đã cài trong `quay.js`).
+- **Mẫu cuộn bằng `body` thay vì cửa sổ** (phát hiện ở gen_198, 21/10): hàm cuộn của `quay.js` tự nhận diện
+  phần tử cuộn thật (body hay cửa sổ) rồi mới cuộn — đừng đơn giản hoá về cuộn cửa sổ, mẫu kiểu này sẽ đứng yên cả video.
 
 ## Quy ước đặt tên
 
