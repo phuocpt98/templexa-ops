@@ -51,3 +51,7 @@ Script tự làm:
 - Đếm ngược của bản gốc hay để kiểu "trong ngày" (`daily`) → truyền `--date` để đếm tới ngày cưới.
 - Nền ảnh khổ máy tính có thể `background-attachment: fixed` (đứng yên khi cuộn).
 - Phần tử ẩn sẵn (biểu tượng loa đang phát…) không phải lúc nào cũng là khu ẩn/hiện — chỉ đích của nút collapse/hidden_show mới là.
+- Bộ thư viện đại lý (`weddingNN.js`, đã làm rối) chèn phần tử lúc chạy: cửa bìa `configOpenDoor` (#BGcurtain), ô đếm ngược
+  trong `.countDown_customize`, chữ động LadiPage → script đã dựng lại; thấy bìa trắng/thiếu thì so `document.elementsFromPoint`
+  trên bản gốc để tìm lớp do script chèn.
+- Ảnh "mở" của `shoot:mobile` có thể chồng lớp khi bìa có cửa → chụp tay: bấm nút mở, chờ ~3,5s, chụp 390×844 @2x.
