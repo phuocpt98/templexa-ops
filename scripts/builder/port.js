@@ -76,7 +76,7 @@ const deadSongs = (ud.musicPlaylist || []).filter((x) => !localSong(x.url)).leng
 if (deadSongs) { ud.musicPlaylist = (ud.musicPlaylist || []).filter((x) => localSong(x.url)); if (ud.music && !localSong(ud.music)) delete ud.music; NOTE.push(`Bỏ ${deadSongs} bài nhạc nằm trên máy chủ gốc (không phát được).`); }
 if (music && !(ud.musicPlaylist || []).length && !ud.music) {
   ud.music = rel(path.resolve(music)).split('/').map(encodeURIComponent).join('/').replace(/%2E%2E/g, '..');
-  NOTE.push('Bản gốc không có nhạc — đã gắn ' + path.basename(music));
+  NOTE.push((deadSongs ? 'Nhạc gốc không dùng được' : 'Bản gốc không có nhạc') + ' — đã gắn ' + path.basename(music));
 }
 if (UD) h = h.slice(0, UD.s) + JSON.stringify(ud) + h.slice(UD.e);
 
@@ -99,6 +99,21 @@ h = h.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`)
   .replace(/<link[^>]+rel="canonical"[^>]*>\s*/g, '')
   .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/g, '')
   .replace(/<\/title>/, `</title>\n<meta name="description" content="${esc(desc)}">\n<meta property="og:title" content="${esc(title)}">\n<meta property="og:description" content="${esc(desc)}">\n<meta property="og:type" content="website">\n<meta property="og:image" content="og-cover.jpg">`);
+
+// ---- ảnh nhúng base64 lớn (nền giấy, hoạ tiết…) → file riêng (trình duyệt cache được, HTML nhẹ)
+{
+  const crypto = require('crypto'); const seen = new Map(); let n = 0, kb = 0;
+  h = h.replace(/data:image\/(webp|png|jpe?g);base64,([A-Za-z0-9+/=]{27000,})/g, (m, ext, b64) => {
+    const key = crypto.createHash('md5').update(b64).digest('hex').slice(0, 10);
+    if (!seen.has(key)) {
+      const f = `assets/images/inline-${key}.${ext === 'jpeg' ? 'jpg' : ext}`;
+      fs.mkdirSync(path.join(OUT, 'assets/images'), { recursive: true });
+      fs.writeFileSync(path.join(OUT, f), Buffer.from(b64, 'base64')); seen.set(key, f); n++; kb += b64.length * 0.75 / 1024;
+    }
+    return seen.get(key);
+  });
+  if (n) NOTE.push(`Tách ${n} ảnh nhúng base64 (${Math.round(kb)}KB) ra assets/images/inline-*.`);
+}
 
 // ---- dòng thương hiệu cuối thiệp (section kết, không có thì section cuối)
 const brand = '<a class="closing-brand" href="https://templexa.vn" target="_blank" rel="noopener">Thiệp online · <b>templexa.vn</b></a>';
