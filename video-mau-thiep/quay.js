@@ -177,10 +177,17 @@ async function runSegment(state, from, to) {
     await page.evaluateOnNewDocument(virtualTime(state.base));
 
     // Chỉ cho nạp file local. Google Fonts trả từ font-cache/ (--tai-font: tải thật rồi lưu vào đó).
+    // Thư viện JS từ CDN (vd lucide trên unpkg — 14 mẫu catalog dùng) trả từ vendor/ để script khỏi chết vì thiếu lib.
     const missing = new Set();
+    const VENDOR_JS = { 'https://unpkg.com/lucide@': path.join(FOLDER, 'vendor', 'lucide.min.js') };
     await page.setRequestInterception(true);
     page.on('request', (r) => {
       const u = r.url();
+      const vendorKey = Object.keys(VENDOR_JS).find((k) => u.startsWith(k));
+      if (vendorKey) {
+        return r.respond({ status: 200, body: fs.readFileSync(VENDOR_JS[vendorKey]),
+          contentType: 'text/javascript; charset=utf-8' }).catch(() => {});
+      }
       if (isFont(u)) {
         const f = fontFile(u);
         // CSS: lược các @font-face có file chữ chưa tải (bộ ký tự ngoài tiếng Việt) — Chrome sẽ không đòi file đó

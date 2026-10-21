@@ -12,6 +12,7 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 - `kich-ban/` — mỗi mẫu 2 file viết TRƯỚC khi quay: `<id>.md` (ghi chép cho người đọc: thiệp hoạt động thế nào, bản đồ vị trí) + `<id>.json` (kịch bản máy chạy). Mẫu: `gen-269-dusty-rose.md/.json`.
 - `quay.js` — script quay tự động (puppeteer): đọc `kich-ban/<id>.json`, xuất mp4 vào `video/`. KHÔNG sửa code cho từng mẫu.
 - `font-cache/` — Google Fonts của MỌI mẫu thiệp public trong catalog (bộ chữ latin/latin-ext/vietnamese/symbols, ~9MB, lưu trong git). Lúc quay chỉ đọc từ đây, không ra mạng. Thiệp không phải sửa gì — chỉ `quay.js` trả font từ cache thay cho Google.
+- `vendor/` — thư viện JS từ CDN mà mẫu thiệp dùng (hiện có `lucide.min.js`); `quay.js` trả file local thay cho CDN lúc quay, không ra mạng.
 - `tai-font.js` — tải lại font cho cả catalog (chạy trên máy có mạng khi có mẫu mới, rồi commit `font-cache/`).
 - `video/` — folder đích chứa video thành phẩm (đã gitignore; đăng xong có thể xoá, lịch sử nằm ở `muc-luc.md`).
 
@@ -95,6 +96,7 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 - **Đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
   vd gen_269: `#collage` là cảnh hero ở ĐẦU trang. Đo bằng `getBoundingClientRect().top + scrollY` sau khi mở thiệp.
 - Bấm nút trong thiệp bằng `el.click()` trong iframe (đã cài trong `quay.js`).
+- **Thư viện JS từ CDN (phát hiện ở gen_219, 21/10)**: 14 mẫu catalog nạp `lucide` từ `unpkg.com`. Lúc quay mọi request ngoài đều bị chặn → `lucide` undefined → `lucide.createIcons()` ở đầu script nổ → CẢ script thiệp chết (phong bì không mở được). Fix ở tầng pipeline (không sửa từng mẫu): `quay.js` trả file `vendor/lucide.min.js` (lưu trong git) cho mọi URL `https://unpkg.com/lucide@*`. Mẫu nào dùng lib CDN khác mà script chết tương tự → vendor hoá theo cùng cách.
 - **Mẫu cuộn bằng `body` thay vì cửa sổ** (phát hiện ở gen_198, 21/10): hàm cuộn của `quay.js` tự nhận diện
   phần tử cuộn thật (body hay cửa sổ) rồi mới cuộn — đừng đơn giản hoá về cuộn cửa sổ, mẫu kiểu này sẽ đứng yên cả video.
 
