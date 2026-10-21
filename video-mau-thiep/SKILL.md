@@ -102,3 +102,7 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 
 - File kịch bản và video: `<id-mau>.md` / `<id-mau>.mp4`, id lấy theo folder thiệp (vd `gen-269-dusty-rose`).
 - Ảnh nền: tên theo phong cách, không dấu (vd `hoa-hong-pastel.jpg`).
+
+## Ảnh nền sân khấu — đa dạng bối cảnh (user dặn 21/10)
+
+Đừng video nào cũng nền hoa lá flatlay. Bối cảnh được SÁNG TẠO tự do — trong phòng, trên giường, trên mây có hoa, quán cà phê, bãi biển... — không cần ý nghĩa, CHỈ CẦN ĐẸP và giữa khung đủ trống êm để điện thoại nổi bật. Xoay vòng giữa các nền, thiếu style thì gen thêm nền mới vào `nen/`. Hiện có thêm: `phong-cuoi-am.jpg` (góc phòng rèm trắng, nến + hồng), `giuong-trang-hoa.jpg` (giường trắng rải cánh hoa), `may-troi-hoa.jpg` (trời mây pastel, hoa anh đào).
