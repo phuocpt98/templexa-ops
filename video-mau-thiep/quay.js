@@ -358,7 +358,8 @@ async function runSegment(state, from, to) {
     const out = path.join(FOLDER, 'video', ID + '.mp4');
     const delay = state.nhacMs || 0;
     const ff = ['-y', '-framerate', String(FPS), '-i', path.join(FRAMES, 'f%05d.jpg')];
-    if (CFG.nhac) ff.push('-i', path.join(OPS_ROOT, CFG.nhac).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA),
+    // Nhạc ngắn hơn video (vd nhạc riêng của mẫu chỉ ~12 giây) thì -shortest cắt video — lặp nhạc cho đủ độ dài video.
+    if (CFG.nhac) ff.push('-stream_loop', '-1', '-i', path.join(OPS_ROOT, CFG.nhac).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA),
       '-af', `adelay=${delay}|${delay},volume=0.5,afade=t=out:st=${Math.max(0, dur - 2.5).toFixed(2)}:d=2.5`,
       '-c:a', 'aac', '-b:a', '160k', '-shortest');
     ff.push('-vf', 'scale=1080:1920:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'medium', '-b:v', '10M', '-maxrate', '12M', '-bufsize', '20M',
