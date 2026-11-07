@@ -227,7 +227,10 @@ async function runSegment(state, from, to) {
       }
     };
     const openStage = async () => {
-      dbg('goto'); await page.goto(STAGE, { waitUntil: 'networkidle0', timeout: 90000 }); dbg('loaded');
+      // Không dùng networkidle0: thiệp có <audio preload="auto"> (vd gen_182) giữ request mp3 mở
+      // mãi khi bật request interception → networkidle0 không bao giờ dứt (đã dính đêm 08/11).
+      // domcontentloaded + vòng poll bên dưới (chờ iframe + phần tử "cho" + document.fonts.ready) đủ chắc.
+      dbg('goto'); await page.goto(STAGE, { waitUntil: 'domcontentloaded', timeout: 90000 }); dbg('loaded');
       for (let i = 0; i < 60; i++) {
         const f = page.frames().find((fr) => fr.url().includes(thiepMark));
         if (f && await f.evaluate((s) => !!document.querySelector(s), CFG.cho || 'body').catch(() => false)) {
