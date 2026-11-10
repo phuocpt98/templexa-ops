@@ -1,0 +1,10 @@
+# Kịch bản quay — gen_312 Thiệp Thôi Nôi Cung Xử Nữ — Khu Vườn Nhỏ Của Bé (bé Mật)
+
+- Mẫu: "Thiệp Thôi Nôi Cung Xử Nữ — Khu Vườn Nhỏ Của Bé" (folder gen_312_thoi-noi-xu-nu-khu-vuon-be-mat, file index.html; bé Nguyễn Ngọc Bảo An — bé Mật, tròn 1 tuổi, tiệc CN 12.09.2027 10:30–13:00 tại Nhà hàng Vườn Cau, 25 Tây Hồ, Hà Nội). Tông khu vườn: xanh lá + cúc trắng, font Baloo 2 + Mali + Nunito (đã có trong font-cache).
+- Cách mở thiệp: bìa gói hạt giống `#cover`, nút "Xé gói hạt giống" `#openBtn` — bấm là xé bìa + bật nhạc. Sau khi mở, `#cover` bị gỡ khỏi DOM (đo bản đồ thấy null).
+- Nhạc nền của thiệp: `assets/nhac-nen.mp3` riêng của mẫu (dài 60 giây, đủ video, không cần lặp).
+- Nền sân khấu: nen/khu-vuon-nho-buoi-sang.jpg (MỚI gen đêm 11/11: khu vườn nhỏ buổi sáng, cúc trắng + bướm ôm 2 bên, bình tưới + giỏ mây góc dưới-phải, nắng nhẹ, giữa trống êm). Dấu templexa.vn: phai-tren (vùng lá xanh đậm góc trên-phải, chữ trắng nổi).
+- Bản đồ vị trí (đo thật ở bề rộng 414px sau khi bấm mở thiệp): #heroTop=34, #count=710 (đếm ngược chạy đúng tới 12.09.2027 10:30 — đo được 305 ngày 09 giờ), "Thông tin giống quý"=971, #grow=1809 ("Từ hạt mầm đến bông hoa"=1702), "Mời cả nhà ghé vườn"=2539, "Luống đất bốc đồ"=3061, #mounds=3197, "Thông tin buổi tiệc"=3740, #calBody=4213, iframe bản đồ=4439, "Album khu vườn"=4860, "Gieo một lời chúc"=5594, #rsvpForm=5707, #wishes=6271, "Cảm ơn cả nhà!"=6931, #closingThanks=6983. Trang cao ~7155px.
+- Lưu ý: mục bản đồ có iframe Google Maps (Nhà hàng Vườn Cau) — lúc quay chặn mạng nên khung bản đồ vỡ (như các mẫu trước, ~2s); tên + địa chỉ + giờ tiệc vẫn hiện phía trên khung nên vẫn giữ mục này với dwell 2500ms. Trò chơi "Luống đất bốc đồ" chỉ quay phần luống cây (#mounds), không bấm chơi. #rsvpForm và #closingThanks có opacity:0 lúc chưa cuộn tới (reveal) — cuộn tới là hiện. Dùng scrollText cho các tiêu đề h2 để tiêu đề không bị cắt khỏi mép trên.
+- Điểm nhấn trong video: bìa gói hạt giống "Xé gói hạt giống" → đếm ngược 305 ngày → nhật ký khu vườn → trò chơi bốc đồ → thông tin tiệc + lịch → album → lời chúc → cảm ơn → kết.
+- Thời lượng dự kiến: ~28 giây.
