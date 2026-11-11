@@ -160,6 +160,17 @@ const isFont = (u) => u.startsWith('https://fonts.googleapis.com/') || u.startsW
 const fontFile = (u) => path.join(FONT_DIR, require('crypto').createHash('sha1').update(u).digest('hex').slice(0, 16)
   + (u.includes('fonts.googleapis.com') ? '.css' : '.woff2'));
 
+// Ảnh bản đồ đại diện cố định (vendor/map-placeholder.jpg — bản đồ Q.1, TP.HCM, có ghim).
+// Lúc quay chặn hết mạng ngoài nên iframe Google Maps không tải được → trả trang HTML này vào iframe
+// để khung bản đồ hiện ảnh đại diện thay vì vỡ. Thiệp thật ngoài đời vẫn giữ bản đồ sống.
+// Không có file ảnh thì MAP_HTML = null, giữ hành vi cũ (chặn request).
+let MAP_HTML = null;
+try {
+  MAP_HTML = '<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;overflow:hidden;background:#e8e8e8}img{width:100%;height:100%;object-fit:cover;display:block}</style></head><body><img src="data:image/jpeg;base64,'
+    + fs.readFileSync(path.join(FOLDER, 'vendor', 'map-placeholder.jpg')).toString('base64') + '"></body></html>';
+} catch (e) { /* không có ảnh đại diện — giữ hành vi cũ */ }
+const isMap = (u) => u.includes('google.com/maps') || u.includes('maps.google.com');
+
 // ===== Một lượt Chrome: mở sân khấu, (khởi động), tua tới khung `from`, chụp tới khung `to`, đóng Chrome.
 async function runSegment(state, from, to) {
   const browser = await puppeteer.launch({
@@ -202,6 +213,10 @@ async function runSegment(state, from, to) {
           headers: { 'Access-Control-Allow-Origin': '*' } }).catch(() => {});
         if (TAI_FONT) return r.continue().catch(() => {});
         missing.add(u); return r.abort().catch(() => {});
+      }
+      if (MAP_HTML && isMap(u)) {
+        return r.respond({ status: 200, body: MAP_HTML,
+          contentType: 'text/html; charset=utf-8' }).catch(() => {});
       }
       const ok = u.startsWith('http://127.0.0.1') || u.startsWith('data:') || u.startsWith('blob:') || u === 'about:blank';
       ok ? r.continue().catch(() => {}) : r.abort().catch(() => {});
