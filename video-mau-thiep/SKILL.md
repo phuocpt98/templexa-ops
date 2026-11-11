@@ -36,6 +36,12 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
      (xem `ms/khung` trong log: 5 giây = 150 khung × ms/khung + ~15 giây mở Chrome và tua lại).
    - Báo **thiếu font** (mẫu mới thêm sau lần tải font gần nhất) → nhắn chủ shop chạy `node video-mau-thiep/tai-font.js`
      trên máy có mạng và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
+     Lưu ý: `tai-font.js` chỉ quét mẫu có trong `data.js` — mẫu chưa đăng ký đó (vd gen_212) thì
+     link font của nó không được tải; tải tay đúng 1 link css2 đó (tên file = sha1(url) 16 ký tự đầu +
+     `.css`, kèm các file woff2 subset latin/latin-ext/vietnamese/symbols của nó) rồi chạy lại.
+   - **Khung hero chụp ở giữa đoạn dừng sau click mở** (quay.js): mẫu nào mở chậm (vd gen_212:
+     1,5s loading + 1,2s mờ dần; gen_332: cửa mở 2,7s) thì tăng `sleep` sau click lên ~6 giây để
+     khung hero sạch, không dính bóng phong bì/cửa đang mờ dần.
    - Trước khi gửi duyệt: trích 6–8 khung (`ffmpeg -ss <giây> -i video/<id>.mp4 -frames:v 1 x.png`) mở xem —
      đúng font, đúng mục, chữ nét, màn kết đủ chữ; **xem luôn `video/<id>-cover.jpg`** (ảnh bìa hero
      tự sinh kèm chữ TEMPLEXA — đây là ảnh gửi Instagram/Threads, và là khung giây đầu của video).
@@ -143,7 +149,7 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 - **Đo bản đồ thiệp trước khi viết timeline**: vị trí các mục không theo thứ tự đoán —
   vd gen_269: `#collage` là cảnh hero ở ĐẦU trang. Đo bằng `getBoundingClientRect().top + scrollY` sau khi mở thiệp.
 - Bấm nút trong thiệp bằng `el.click()` trong iframe (đã cài trong `quay.js`).
-- **Thư viện JS từ CDN (phát hiện ở gen_219, 21/10)**: 14 mẫu catalog nạp `lucide` từ `unpkg.com`. Lúc quay mọi request ngoài đều bị chặn → `lucide` undefined → `lucide.createIcons()` ở đầu script nổ → CẢ script thiệp chết (phong bì không mở được). Fix ở tầng pipeline (không sửa từng mẫu): `quay.js` trả file `vendor/lucide.min.js` (lưu trong git) cho mọi URL `https://unpkg.com/lucide@*`. Mẫu nào dùng lib CDN khác mà script chết tương tự → vendor hoá theo cùng cách.
+- **Thư viện JS từ CDN (phát hiện ở gen_219, 21/10)**: 14 mẫu catalog nạp `lucide` từ `unpkg.com`. Lúc quay mọi request ngoài đều bị chặn → `lucide` undefined → `lucide.createIcons()` ở đầu script nổ → CẢ script thiệp chết (phong bì không mở được). Fix ở tầng pipeline (không sửa từng mẫu): `quay.js` trả file `vendor/lucide.min.js` (lưu trong git) cho mọi URL `https://unpkg.com/lucide@*`. Mẫu nào dùng lib CDN khác mà script chết tương tự → vendor hoá theo cùng cách. (Đêm 12/11: gen_212 nạp lucide từ `cdn.jsdelivr.net` — không phải unpkg — cũng chết y hệt: `createIcons()` nổ ở đầu `DOMContentLoaded` nên `initEnvelope()` không chạy, phong bì không mở; đã tải đúng bản `lucide@0.344.0` về `vendor/lucide-0.344.0.min.js` và thêm map jsdelivr vào `VENDOR_JS` trong `quay.js`.)
 - **Bản đồ Google Maps vỡ lúc quay (phát hiện ở gen_327/gen_312, sửa 11/11)**: lúc quay chặn hết mạng ngoài nên iframe `google.com/maps`/`maps.google.com` không tải được → khung xám + icon ảnh vỡ ~2s trong video. Fix ở tầng pipeline (không sửa thiệp thật — thiệp ngoài đời vẫn giữ bản đồ sống): `quay.js` trả 1 trang HTML bọc ảnh `vendor/map-placeholder.jpg` (ảnh bản đồ đại diện cố định, bản đồ Q.1 TP.HCM có ghim đỏ, dùng chung cho MỌI thiệp — user chốt 11/11, không làm ảnh theo từng địa điểm) vào mọi request bản đồ. Đã kiểm chứng bằng quay thử gen_327: khung bản đồ hiện ảnh đại diện có ghim, tên + địa chỉ nhà hàng vẫn hiện đúng ngoài khung.
 - **Mẫu cuộn bằng `body` thay vì cửa sổ** (phát hiện ở gen_198, 21/10): hàm cuộn của `quay.js` tự nhận diện
   phần tử cuộn thật (body hay cửa sổ) rồi mới cuộn — đừng đơn giản hoá về cuộn cửa sổ, mẫu kiểu này sẽ đứng yên cả video.

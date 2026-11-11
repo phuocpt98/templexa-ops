@@ -208,7 +208,10 @@ async function runSegment(state, from, to) {
     // Chỉ cho nạp file local. Google Fonts trả từ font-cache/ (--tai-font: tải thật rồi lưu vào đó).
     // Thư viện JS từ CDN (vd lucide trên unpkg — 14 mẫu catalog dùng) trả từ vendor/ để script khỏi chết vì thiếu lib.
     const missing = new Set();
-    const VENDOR_JS = { 'https://unpkg.com/lucide@': path.join(FOLDER, 'vendor', 'lucide.min.js') };
+    const VENDOR_JS = { 'https://unpkg.com/lucide@': path.join(FOLDER, 'vendor', 'lucide.min.js'),
+      // gen_212 nạp lucide từ jsdelivr (không phải unpkg) — thiếu là lucide.createIcons() nổ,
+      // cả DOMContentLoaded chết theo, phong bì không mở được (phát hiện đêm 12/11).
+      'https://cdn.jsdelivr.net/npm/lucide@': path.join(FOLDER, 'vendor', 'lucide-0.344.0.min.js') };
     await page.setRequestInterception(true);
     page.on('request', (r) => {
       const u = r.url();
