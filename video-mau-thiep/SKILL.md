@@ -37,7 +37,8 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
    - Báo **thiếu font** (mẫu mới thêm sau lần tải font gần nhất) → nhắn chủ shop chạy `node video-mau-thiep/tai-font.js`
      trên máy có mạng và push `font-cache/` (máy Muse không vào được fonts.googleapis.com). Không tự quay bằng font thay thế.
    - Trước khi gửi duyệt: trích 6–8 khung (`ffmpeg -ss <giây> -i video/<id>.mp4 -frames:v 1 x.png`) mở xem —
-     đúng font, đúng mục, chữ nét, màn kết đủ chữ.
+     đúng font, đúng mục, chữ nét, màn kết đủ chữ; **xem luôn `video/<id>-cover.jpg`** (ảnh bìa hero
+     tự sinh kèm chữ TEMPLEXA — đây là ảnh gửi Instagram/Threads, và là khung giây đầu của video).
 4. **Ghi mục lục + lên Drive**: thêm dòng vào `muc-luc.md` (ngày, mẫu, nền, video, trạng thái "chờ duyệt"),
    tải video vào thư mục Drive **"video thiệp"** (https://drive.google.com/drive/folders/1gLuYo8xbVTaYrNQszrR29qLcORLp4Utm) để user duyệt/lấy dùng.
 5. **Duyệt & đăng**: user duyệt video → đăng Page "Thiệp online Templexa" dạng Reel bằng connector facebook
@@ -52,8 +53,9 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 - Trước lượt quay thật luôn có **vòng khởi động** (mở thiệp + cuộn sẵn 1 vòng + tải lại) để tài nguyên nạp hết. Mọi tài nguyên nạp từ file local + `font-cache/`; lúc quay chặn hết đường ra mạng ngoài.
 - Thiệp trong điện thoại render ở bề rộng điện thoại thật (`rong`, mặc định 414px) rồi phóng lên khung — giao diện mobile đúng như khách thấy.
 - Ảnh trong điện thoại phải bo tròn theo khung (clip-path ở `san-khau.html`), không tràn góc vuông.
-- Âm thanh: dùng chính nhạc nền của thiệp (file trong `Templexa/products/shared/music/...`),
-  trộn bằng ffmpeg, nhỏ dần ở cuối.
+- Âm thanh: dùng nhạc thương hiệu trong kho (xem mục Nhạc thương hiệu + ảnh bìa hero),
+  phát từ điệp khúc, trộn bằng ffmpeg, nhỏ dần ở cuối. `nhac` của thiệp chỉ còn là
+  tham chiếu — video không dùng nhạc thiệp nữa trừ khi kịch bản không ghi `nhacVideo`.
 
 ## Kịch bản máy chạy (`kich-ban/<id>.json`)
 
@@ -62,6 +64,8 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
   "thiep": "Templexa/products/Invitation/Wedding/gen_269_dusty-rose-flatlay/index.html",
   "nen": "nen/hoa-hong-pastel.jpg",
   "nhac": "Templexa/products/shared/music/wedding/Beautiful In White.mp3",
+  "nhacVideo": "Templexa/products/shared/music/wedding/Mot Doi.mp3",  // nhạc thương hiệu thay nhạc thiệp (xem dưới)
+  "nhacTu": 70,                                // bắt đầu từ giây 70 = điệp khúc của bài đó
   "cho": "#envelope",              // phần tử phải có thì mới coi là thiệp đã tải xong
   "tieuDe": "MẪU THIỆP CƯỚI ONLINE",
   "viTriWeb": "phai-duoi",         // trai-tren | phai-tren | trai-duoi | phai-duoi | giua-duoi
@@ -80,6 +84,35 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 Tổng thời lượng = cộng các `sleep` + `ms`. Nhạc tự nhỏ dần 2,5 giây cuối, theo độ dài thật của video.
 Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 
+- **Nhạc thương hiệu + ảnh bìa hero (quy trình mới, user chốt 11/11, áp từ lô đêm 12/11)**:
+  video không dùng nhạc riêng của thiệp nữa mà dùng 1 bài trong kho nhạc thương hiệu, phát
+  từ điệp khúc; ảnh bìa lấy đúng ảnh hero sau khi mở thiệp, chữ TEMPLEXA to đè lên.
+  - **Nhạc**: kịch bản ghi `"nhacVideo": "<file trong Templexa/products/shared/music/...>"`
+    + `"nhacTu": <giây bắt đầu điệp khúc>`; `quay.js` cắt nhạc từ mốc đó rồi lặp cho đủ
+    video, nhạc bắt đầu đúng lúc bấm mở thiệp (như cũ) và nhỏ dần 2,5 giây cuối.
+    Không có `nhacVideo` thì dùng `nhac` của thiệp như cũ. Xoay vòng mỗi đêm 2 video
+    dùng 2 bài khác nhau, tránh lặp bài đêm trước.
+  - **Mốc điệp khúc** (đo bằng phân tích âm lượng RMS từng 5 giây ngày 11/11 — ước lượng,
+    chưa nghe kiểm chứng bằng tai; nghe thấy lệch thì chỉnh số `nhacTu`):
+    | Bài | File | Điệp khúc từ |
+    |---|---|---|
+    | Một Đời | wedding/Mot Doi.mp3 (328s) | 70s |
+    | Lễ Đường (Kai Đinh) | wedding/Le Duong.mp3 (249s) | 50s |
+    | A Thousand Years | wedding/A Thousand Years.mp3 (285s) | 55s |
+    | Beautiful In White | wedding/Beautiful In White.mp3 (227s) | 85s |
+    | Perfect | romantic/Perfect.mp3 (263s) | 35s |
+    | Khúc hát mừng sinh nhật (remix) | festive-holiday/khuc-hat-mung-sinh-nhat-remix.mp3 (249s) | 15s |
+    | Nụ cười 18-20 | festive-holiday/nu-cuoi-18-20.mp3 (250s) | 80s |
+    5 bài đầu cho video cưới, 2 bài cuối cho video bé/sinh nhật. "Love story — Afalnisme"
+    (nhạc thương hiệu TikTok) CHƯA có file trong kho nhạc local — muốn dùng thì lấy file về trước.
+  - **Ảnh bìa hero**: `quay.js` tự chụp khung giữa đoạn dừng ngắm hero sau khi mở thiệp
+    (lúc chụp ẩn nút nhạc nổi ⏸ trong thiệp + dấu templexa.vn trên sân khấu nên ảnh sạch),
+    đè chữ TEMPLEXA to + templexa.vn ở dải dưới, xuất `video/<id>-cover.jpg` — dùng làm
+    ảnh bìa khi đăng Instagram/Threads. Đồng thời chèn ảnh bìa làm **1 giây đầu video,
+    mờ dần trong 0,5s** vào nội dung, để Facebook tự chọn đúng khung hero làm thumbnail
+    (không đảm bảo 100% vì Facebook không cho đặt cover qua API). Thiệp không có click mở
+    thì không có ảnh bìa — giữ video như cũ. Không cần trích tay khung giây 3 nữa.
+  - Kịch bản mẫu kiểu mới đầy đủ: `kich-ban/gen-327-cham.json` (cuộn chậm + nhạc thương hiệu + bìa hero).
 - **Cuộn chậm auto-scroll liên tục (kiểu quay mới, user chốt 11/11)**: cuộn cũ nhảy từng mục
   2–2,5 giây với ease (nhanh dần–chậm dần) nên người xem không kịp đọc, hay bắt cảnh đang
   cuộn dở. Kiểu mới: MỘT đoạn cuộn duy nhất từ đầu tới cuối thiệp với `"cham": true`

@@ -144,6 +144,24 @@ function framePlan() {
   return GIAY ? Math.min(n, Math.round(GIAY * FPS)) : n;
 }
 
+// Khung hero: giữa đoạn dừng ngắm ảnh hero sau khi mở thiệp (sleep ngay sau click mở đầu tiên).
+// quay.js tự chụp khung này (ẩn nút nhạc nổi + dấu templexa.vn lúc chụp) làm ảnh bìa + 1 giây đầu video.
+// Thiệp không có click mở (không có phong bì) thì không có ảnh bìa — giữ hành vi cũ.
+let HERO_FRAME = null;
+{
+  let n = 0, opened = false;
+  for (const st of CFG.timeline) {
+    if (st.sleep) {
+      const k = Math.ceil(st.sleep / DT - 1e-9);
+      if (opened && HERO_FRAME === null) HERO_FRAME = n + Math.floor(k / 2);
+      n += k;
+    } else if (st.scroll || st.scrollText) n += Math.round(st.ms / DT);
+    else if (st.top) n += Math.round(st.top / DT);
+    if (st.click) opened = true;
+  }
+  if (GIAY && HERO_FRAME !== null && HERO_FRAME >= Math.round(GIAY * FPS)) HERO_FRAME = null;
+}
+
 // ===== Tiến độ (chạy tiếp được sau khi máy khởi động lại)
 const JOB = path.join(FOLDER, 'video', '.job-' + ID);
 const FRAMES = path.join(JOB, 'frames');
@@ -153,7 +171,7 @@ const log = (m) => {
   console.log(line); fs.appendFileSync(path.join(JOB, 'log.txt'), line + '\n');
 };
 const saveState = (st) => fs.writeFileSync(STATE, JSON.stringify(st, null, 2));
-const KEY = require('crypto').createHash('sha1').update(JSON.stringify({ CFG, FPS, HD, GIAY, v: 2 })).digest('hex').slice(0, 12);
+const KEY = require('crypto').createHash('sha1').update(JSON.stringify({ CFG, FPS, HD, GIAY, v: 3 })).digest('hex').slice(0, 12);
 const frameFile = (i) => path.join(FRAMES, `f${String(i).padStart(5, '0')}.jpg`);
 
 const isFont = (u) => u.startsWith('https://fonts.googleapis.com/') || u.startsWith('https://fonts.gstatic.com/');
@@ -282,6 +300,8 @@ async function runSegment(state, from, to) {
     // ===== Chạy kịch bản: khung < from → TUA (không chụp, chỉ đợi trình duyệt vẽ để hiệu ứng cuộn kích hoạt đúng);
     // from ≤ khung < to → CHỤP ra frames/; tới `to` thì dừng.
     const cdp = await page.createCDPSession();
+    const HERO_RAW = path.join(JOB, 'hero-raw.jpg');
+    let heroDone = fs.existsSync(HERO_RAW); // chạy tiếp đoạn sau: ảnh hero đã chụp ở đoạn 1 thì thôi
     const STOP = Symbol('stop');
     let n = 0, nhacMs = null, imagesReady = from === 0;
     const t0 = Date.now();
@@ -294,6 +314,28 @@ async function runSegment(state, from, to) {
         const { data } = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 90, optimizeForSpeed: true,
           clip: { x: 0, y: 0, width: 1080, height: 1920, scale: HD } }); // phải ghi scale thì Chrome mới chụp đúng độ phân giải --hd
         fs.writeFileSync(frameFile(n), Buffer.from(data, 'base64'));
+        // Ảnh hero sạch làm bìa + 1 giây đầu: ẩn nút nhạc nổi (position:fixed) trong iframe
+        // và dấu templexa.vn trên sân khấu, chụp xong khôi phục ngay — khung video không ảnh hưởng.
+        if (!heroDone && HERO_FRAME !== null && n >= HERO_FRAME) {
+          heroDone = true;
+          try {
+            await page.evaluate(() => { const d = document.getElementById('dau-an'); if (d) d.style.visibility = 'hidden'; }).catch(() => {});
+            await frame.evaluate(() => {
+              const an = [];
+              document.querySelectorAll('body *').forEach((el) => {
+                if (getComputedStyle(el).position === 'fixed') { an.push(el); el.style.visibility = 'hidden'; }
+              });
+              window.__heroAn = an;
+            }).catch(() => {});
+            await frame.evaluate(() => window.__vt.paint()).catch(() => {});
+            const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 92,
+              clip: { x: 0, y: 0, width: 1080, height: 1920, scale: HD } });
+            fs.writeFileSync(HERO_RAW, Buffer.from(shot.data, 'base64'));
+            log(`Anh hero chup o ${(n / FPS).toFixed(1)}s`);
+          } catch (e) { log('Chup anh hero loi (bo qua, dung bia cu): ' + e.message); }
+          await frame.evaluate(() => { (window.__heroAn || []).forEach((el) => { el.style.visibility = ''; }); }).catch(() => {});
+          await page.evaluate(() => { const d = document.getElementById('dau-an'); if (d) d.style.visibility = ''; }).catch(() => {});
+        }
       }
       n++;
     };
@@ -379,8 +421,19 @@ async function runSegment(state, from, to) {
     const out = path.join(FOLDER, 'video', ID + '.mp4');
     const delay = state.nhacMs || 0;
     const ff = ['-y', '-framerate', String(FPS), '-i', path.join(FRAMES, 'f%05d.jpg')];
+    // Nhạc thương hiệu (quy trình mới từ lô đêm 12/11): "nhacVideo" thay nhạc của thiệp,
+    // "nhacTu" = giây bắt đầu điệp khúc — cắt trước rồi lặp cho đủ độ dài video.
+    // Không có nhacVideo thì dùng "nhac" của thiệp như cũ.
     // Nhạc ngắn hơn video (vd nhạc riêng của mẫu chỉ ~12 giây) thì -shortest cắt video — lặp nhạc cho đủ độ dài video.
-    if (CFG.nhac) ff.push('-stream_loop', '-1', '-i', path.join(OPS_ROOT, CFG.nhac).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA),
+    const nhacSrc = CFG.nhacVideo || CFG.nhac;
+    let nhacPath = nhacSrc ? path.join(OPS_ROOT, nhacSrc).replace(path.join(OPS_ROOT, 'Templexa'), TEMPLEXA) : null;
+    if (nhacPath && CFG.nhacVideo && CFG.nhacTu) {
+      const trim = path.join(JOB, 'nhac-trim.mp3');
+      execFileSync('ffmpeg', ['-y', '-ss', String(CFG.nhacTu), '-i', nhacPath, '-c:a', 'libmp3lame', '-q:a', '2', trim], { stdio: 'pipe' });
+      nhacPath = trim;
+      log(`Nhac thuong hieu: ${CFG.nhacVideo} — cat tu ${CFG.nhacTu}s (diep khuc)`);
+    }
+    if (nhacPath) ff.push('-stream_loop', '-1', '-i', nhacPath,
       '-af', `adelay=${delay}|${delay},volume=0.5,afade=t=out:st=${Math.max(0, dur - 2.5).toFixed(2)}:d=2.5`,
       '-c:a', 'aac', '-b:a', '160k', '-shortest');
     ff.push('-vf', 'scale=1080:1920:flags=lanczos,format=yuv420p', '-c:v', 'libx264', '-preset', 'medium', '-b:v', '10M', '-maxrate', '12M', '-bufsize', '20M',
@@ -388,6 +441,30 @@ async function runSegment(state, from, to) {
     log('Ghep video + nhac...');
     execFileSync('ffmpeg', ff, { stdio: 'pipe' });
     log(`XONG: ${out} (${dur.toFixed(1)}s, tong ${Math.round((Date.now() - T_START) / 1000)}s lan chay nay)`);
+
+    // Ảnh bìa hero + 1 giây đầu (quy trình mới từ lô đêm 12/11): ảnh hero sạch + chữ TEMPLEXA to.
+    // Cover dùng làm ảnh bìa IG/Threads; 1 giây đầu mờ dần để Facebook tự chọn đúng khung hero làm thumbnail
+    // (không đảm bảo 100%). Lỗi ở bước này thì giữ nguyên video đã ghép, không hỏng cả lượt quay.
+    try {
+      const HERO_RAW2 = path.join(JOB, 'hero-raw.jpg');
+      const COVER = path.join(FOLDER, 'video', ID + '-cover.jpg');
+      if (fs.existsSync(HERO_RAW2)) {
+        const FONT = ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf']
+          .find((f) => fs.existsSync(f));
+        if (!FONT) throw new Error('khong thay font Bold tren may');
+        execFileSync('ffmpeg', ['-y', '-i', HERO_RAW2, '-vf',
+          `scale=1080:1920:flags=lanczos,drawbox=x=0:y=1690:w=1080:h=230:color=black@0.45:t=fill,drawtext=fontfile=${FONT}:text='TEMPLEXA':fontsize=110:fontcolor=white:borderw=3:bordercolor=black@0.6:shadowcolor=black@0.8:shadowx=4:shadowy=4:x=(w-text_w)/2:y=1705,drawtext=fontfile=${FONT}:text='templexa.vn':fontsize=50:fontcolor=white:borderw=2:bordercolor=black@0.6:shadowcolor=black@0.8:shadowx=3:shadowy=3:x=(w-text_w)/2:y=1835`,
+          '-frames:v', '1', '-q:v', '2', COVER], { stdio: 'pipe' });
+        log(`Anh bia: ${COVER}`);
+        const tmp = path.join(FOLDER, 'video', ID + '.tmp.mp4');
+        execFileSync('ffmpeg', ['-y', '-i', out, '-loop', '1', '-t', '1', '-i', COVER, '-filter_complex',
+          '[1:v]format=rgba,fade=t=out:st=0.5:d=0.5,format=yuva420p[ov];[0:v][ov]overlay=0:0:eof_action=pass[v]',
+          '-map', '[v]', '-map', '0:a', '-c:v', 'libx264', '-preset', 'medium', '-b:v', '10M', '-maxrate', '12M', '-bufsize', '20M',
+          '-profile:v', 'high', '-threads', '2', '-r', String(FPS), '-movflags', '+faststart', '-c:a', 'copy', tmp], { stdio: 'pipe' });
+        fs.renameSync(tmp, out);
+        log('Da chen 1 giay dau (anh hero + TEMPLEXA, mo dan 0,5s)');
+      } else log('Khong co anh hero — giu video khong co 1 giay dau (kiem tra kich ban co click mo khong)');
+    } catch (e) { log('Anh bia / 1 giay dau loi (giu video goc): ' + e.message); }
     fs.rmSync(JOB, { recursive: true, force: true }); // xong hẳn mới xoá ảnh tạm + tiến độ
   } finally {
     srv.close();
