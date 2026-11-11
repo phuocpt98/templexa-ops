@@ -298,7 +298,9 @@ async function runSegment(state, from, to) {
       n++;
     };
     const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
-    const scrollTo = async (findSrc, ms) => {
+    // cham=true: cuộn chậm tuyến tính (tốc độ đều, không ease) — kiểu auto-scroll cho video mới:
+    // mỗi bước nhảy chỉ vài px/khung, người xem kịp đọc theo. Dùng với ms dài (8000–15000ms/đoạn).
+    const scrollTo = async (findSrc, ms, cham) => {
       const [y0, y1] = await frame.evaluate((src) => {
         // Mẫu cuộn bằng body (vd gen_198) thì window.scrollTo vô hiệu — tự chọn phần tử cuộn thật.
         const de = document.documentElement, bd = document.body;
@@ -313,7 +315,8 @@ async function runSegment(state, from, to) {
       const steps = Math.round(ms / DT);
       for (let i = 1; i <= steps; i++) {
         if (n >= to) throw STOP;
-        await frame.evaluate((y) => { const de = document.documentElement, bd = document.body; const sc = (bd && bd.scrollHeight - bd.clientHeight > de.scrollHeight - de.clientHeight) ? bd : de; sc.scrollTo({ top: y, behavior: 'instant' }); }, y0 + (y1 - y0) * ease(i / steps));
+        const p = i / steps;
+        await frame.evaluate((y) => { const de = document.documentElement, bd = document.body; const sc = (bd && bd.scrollHeight - bd.clientHeight > de.scrollHeight - de.clientHeight) ? bd : de; sc.scrollTo({ top: y, behavior: 'instant' }); }, y0 + (y1 - y0) * (cham ? p : ease(p)));
         await step();
       }
     };
@@ -323,8 +326,8 @@ async function runSegment(state, from, to) {
         else if (st.click) {
           await frame.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, st.click).catch(() => {});
           if (st.nhac && nhacMs === null) nhacMs = Math.round(n * DT);
-        } else if (st.scroll) await scrollTo(`() => document.querySelector(${JSON.stringify(st.scroll)})`, st.ms);
-        else if (st.scrollText) await scrollTo(`() => [...document.querySelectorAll(${JSON.stringify(st.scrollText[0])})].find((h) => h.textContent.includes(${JSON.stringify(st.scrollText[1])}))`, st.ms);
+        } else if (st.scroll) await scrollTo(`() => document.querySelector(${JSON.stringify(st.scroll)})`, st.ms, st.cham);
+        else if (st.scrollText) await scrollTo(`() => [...document.querySelectorAll(${JSON.stringify(st.scrollText[0])})].find((h) => h.textContent.includes(${JSON.stringify(st.scrollText[1])}))`, st.ms, st.cham);
         else if (st.top) await scrollTo(null, st.top);
         else if (st.endcard) await page.evaluate(() => window.hienManKet());
       }

@@ -70,6 +70,7 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
     { "sleep": 2500 },                         // đứng yên (ms)
     { "click": "#envelope", "nhac": true },    // bấm; "nhac": nhạc bắt đầu từ lúc này
     { "scroll": "#invite", "ms": 3500 },       // cuộn tới phần tử (cách mép trên 40px)
+    { "scroll": "#album", "ms": 10000, "cham": true },  // cuộn CHẬM tuyến tính (kiểu mới 11/11, xem dưới)
     { "scrollText": ["h2", "Timeline"], "ms": 3500 },  // cuộn tới thẻ chứa chữ
     { "top": 2500 },                           // cuộn về đầu trang
     { "endcard": true }, { "sleep": 2500 }     // màn kết đè lên hình
@@ -78,6 +79,15 @@ Mọi tài sản nằm trong folder này (`templexa-ops/video-mau-thiep/`).
 ```
 Tổng thời lượng = cộng các `sleep` + `ms`. Nhạc tự nhỏ dần 2,5 giây cuối, theo độ dài thật của video.
 Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
+
+- **Cuộn chậm auto-scroll liên tục (kiểu quay mới, user chốt 11/11)**: cuộn cũ nhảy từng mục
+  2–2,5 giây với ease (nhanh dần–chậm dần) nên người xem không kịp đọc, hay bắt cảnh đang
+  cuộn dở. Kiểu mới: MỘT đoạn cuộn duy nhất từ đầu tới cuối thiệp với `"cham": true`
+  (quay.js: nội suy tuyến tính, tốc độ đều, không ease) dài ~55 giây — lướt chậm từng
+  chút một, không nhảy từng mục, không dừng giữa chừng. Chỉ dừng 3,5 giây ngắm ảnh hero
+  sau khi mở thiệp. Tổng video ~60–75 giây (thay vì 25–30 giây), file ~75–95 MB ở
+  10 Mbps — vẫn vừa giới hạn 100 MB của Instagram/Threads; dài hơn 80 giây thì hạ
+  bitrate. Áp từ lô đêm 12/11 trở đi (kịch bản mẫu: `kich-ban/gen-327-cham.json`).
 
 ## Kinh nghiệm kỹ thuật
 
