@@ -85,7 +85,10 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
   cuộn dở. Kiểu mới: MỘT đoạn cuộn duy nhất từ đầu tới cuối thiệp với `"cham": true`
   (quay.js: nội suy tuyến tính, tốc độ đều, không ease) dài ~55 giây — lướt chậm từng
   chút một, không nhảy từng mục, không dừng giữa chừng. Chỉ dừng 3,5 giây ngắm ảnh hero
-  sau khi mở thiệp. Tổng video ~60–75 giây (thay vì 25–30 giây), file ~75–95 MB ở
+  sau khi mở thiệp. KẾT: giữ nguyên ở cuối thiệp (mục cảm ơn), KHÔNG cuộn ngược lên hero
+  như kiểu cũ — màn kết TEMPLEXA + templexa.vn (chữ to) mờ dần đè lên khung cảm ơn rồi
+  hết video (màn kết là lớp phủ cố định trong san-khau.html nên hiện được trên bất kỳ
+  vị trí cuộn nào). Tổng video ~60–75 giây (thay vì 25–30 giây), file ~75–95 MB ở
   10 Mbps — vẫn vừa giới hạn 100 MB của Instagram/Threads; dài hơn 80 giây thì hạ
   bitrate. Áp từ lô đêm 12/11 trở đi (kịch bản mẫu: `kich-ban/gen-327-cham.json`).
 

@@ -7,8 +7,11 @@ bản đã đăng 10/11 — chỉ đổi cách quay: lướt chậm liên tục 
   (quay.js: nội suy tuyến tính, tốc độ đều, không ease) dài 55 giây từ đầu tới mục Kết —
   không nhảy từng mục, không dừng giữa chừng. Mỗi khung chỉ nhích vài px, người xem
   kịp đọc theo từng chút một.
-- Tổng ~66,5 giây (bản cũ 29,5 giây). File ~70–80 MB ở 10 Mbps, vừa giới hạn 100 MB
+- Kết: GIỮ NGUYÊN ở cuối thiệp (mục cảm ơn), KHÔNG cuộn ngược lên hero như kiểu cũ —
+  màn kết TEMPLEXA + templexa.vn (chữ to) mờ dần đè lên khung cảm ơn rồi hết video.
+  (Màn kết là lớp phủ cố định trong san-khau.html nên hiện được trên bất kỳ vị trí cuộn nào.)
+- Tổng ~64 giây (bản cũ 29,5 giây). File ~70–80 MB ở 10 Mbps, vừa giới hạn 100 MB
   của Instagram/Threads.
 
 Bản quay thử chỉ lấy 30 giây đầu (`--giay 30`) để xem tốc độ cuộn đã vừa chưa.
-Nếu user ưng thì quay đủ 66,5 giây rồi mới tính đăng lại.
+Nếu user ưng thì quay đủ 64 giây rồi mới tính đăng lại.
