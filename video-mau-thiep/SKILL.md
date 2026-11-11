@@ -85,7 +85,8 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
   cuộn dở. Kiểu mới: MỘT đoạn cuộn duy nhất từ đầu tới cuối thiệp với `"cham": true`
   (quay.js: nội suy tuyến tính, tốc độ đều, không ease) dài ~55 giây — lướt chậm từng
   chút một, không nhảy từng mục, không dừng giữa chừng. Chỉ dừng 3,5 giây ngắm ảnh hero
-  sau khi mở thiệp. KẾT: giữ nguyên ở cuối thiệp (mục cảm ơn), KHÔNG cuộn ngược lên hero
+  sau khi mở thiệp. Thiệp dài thì tăng ms cuộn theo chiều dài trang (gen_327 dài, 55s
+  vẫn hơi nhanh — user tạm chấp nhận 11/11); đừng cố định 55s cho mọi mẫu. KẾT: giữ nguyên ở cuối thiệp (mục cảm ơn), KHÔNG cuộn ngược lên hero
   như kiểu cũ — màn kết TEMPLEXA + templexa.vn (chữ to) mờ dần đè lên khung cảm ơn rồi
   hết video (màn kết là lớp phủ cố định trong san-khau.html nên hiện được trên bất kỳ
   vị trí cuộn nào). Tổng video ~60–75 giây (thay vì 25–30 giây), file ~75–95 MB ở
