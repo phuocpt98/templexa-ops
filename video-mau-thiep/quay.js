@@ -108,6 +108,7 @@ const virtualTime = (base) => `(() => {
   window.requestAnimationFrame = (fn) => { const id = rid++; rafs.push({ id, fn }); return id; };
   window.cancelAnimationFrame = (id) => { rafs = rafs.filter((r) => r.id !== id); };
   const start = new WeakMap();
+  const finished = new WeakSet(); // animation WAAPI đã gọi finish() (chỉ 1 lần — xem advance())
   window.__vt = {
     sleep: (ms) => new Promise((r) => RT(r, ms)), // chờ theo đồng hồ THẬT (dùng cho script quay)
     paint: () => new Promise((r) => { RAF(() => r()); RT(r, 120); }), // đợi trình duyệt vẽ 1 lần (lúc tua không chụp)
@@ -128,6 +129,16 @@ const virtualTime = (base) => `(() => {
       document.getAnimations().forEach((an) => {
         if (!start.has(an)) { start.set(an, now); an.pause(); }
         an.currentTime = now - start.get(an);
+        // Animation WAAPI (element.animate + onfinish — vd gen_313 thả tim mở thiệp):
+        // tua bằng pause + đặt currentTime qua hết thời lượng KHÔNG kích hoạt onfinish trong
+        // Chrome (đã kiểm chứng) — gọi finish() 1 lần khi vừa chạm mốc kết thúc để callback
+        // chạy đúng lúc. Animation lặp vô hạn (endTime = Infinity) không bao giờ chạm mốc.
+        try {
+          const end = an.effect ? an.effect.getComputedTiming().endTime : null;
+          if (!finished.has(an) && an.currentTime !== null && end !== null && an.currentTime >= end) {
+            finished.add(an); an.finish();
+          }
+        } catch (e) {}
       });
     },
   };

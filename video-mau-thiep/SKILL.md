@@ -153,6 +153,8 @@ Muốn đổi bề rộng điện thoại: thêm `"rong": 390`.
 - **Bản đồ Google Maps vỡ lúc quay (phát hiện ở gen_327/gen_312, sửa 11/11)**: lúc quay chặn hết mạng ngoài nên iframe `google.com/maps`/`maps.google.com` không tải được → khung xám + icon ảnh vỡ ~2s trong video. Fix ở tầng pipeline (không sửa thiệp thật — thiệp ngoài đời vẫn giữ bản đồ sống): `quay.js` trả 1 trang HTML bọc ảnh `vendor/map-placeholder.jpg` (ảnh bản đồ đại diện cố định, bản đồ Q.1 TP.HCM có ghim đỏ, dùng chung cho MỌI thiệp — user chốt 11/11, không làm ảnh theo từng địa điểm) vào mọi request bản đồ. Đã kiểm chứng bằng quay thử gen_327: khung bản đồ hiện ảnh đại diện có ghim, tên + địa chỉ nhà hàng vẫn hiện đúng ngoài khung.
 - **Mẫu cuộn bằng `body` thay vì cửa sổ** (phát hiện ở gen_198, 21/10): hàm cuộn của `quay.js` tự nhận diện
   phần tử cuộn thật (body hay cửa sổ) rồi mới cuộn — đừng đơn giản hoá về cuộn cửa sổ, mẫu kiểu này sẽ đứng yên cả video.
+- **Animation WAAPI + `onfinish` không chạy khi tua đồng hồ ảo (phát hiện ở gen_313, sửa 16/11)**: `quay.js` đóng băng animation bằng `pause()` rồi đặt `currentTime` theo đồng hồ ảo — Chrome KHÔNG kích hoạt `onfinish` khi tua qua hết thời lượng kiểu này (đã kiểm chứng bằng test riêng: seek-past-end → không chạy, `finish()` → chạy). Thiệp nào mở bằng `element.animate(...).onfinish` (vd gen_313: thả tim bay 0,7s rồi mới mở bìa) sẽ kẹt ở bìa mãi. Fix ở tầng pipeline (không sửa từng mẫu): `advance()` trong `quay.js` gọi `an.finish()` đúng 1 lần khi animation chạm mốc kết thúc (`getComputedTiming().endTime`); animation lặp vô hạn (endTime = Infinity) không bị chạm.
+  phần tử cuộn thật (body hay cửa sổ) rồi mới cuộn — đừng đơn giản hoá về cuộn cửa sổ, mẫu kiểu này sẽ đứng yên cả video.
 
 ## Quy ước đặt tên
 
